@@ -9,6 +9,7 @@ typedef unsigned int myfloat;
 #define MAX_NUMBER 16777216  // 2^24
 #define MANTISSA_BITS 24
 
+bool run;
 myfloat mfadd(myfloat a, myfloat b) {
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
   if (ea > eb) {
@@ -70,6 +71,7 @@ myfloat mfshow(myfloat a) {
   printf("exp = %d, data = %u\n", ea, a);
 }
 
+// div
 myfloat mfdivvv(myfloat a, myfloat b) {
   if (a == 0) return 0;  // to be fix to inf
 
@@ -80,7 +82,7 @@ myfloat mfdivvv(myfloat a, myfloat b) {
   int newe = MANTISSA_BITS + ((ea - eb) + MF_EXP_BIAS);
   int ee = 0;
 
-  unsigned int k = 0xffffffff / 2;  //(unsigned int)16777216*2*2*2*2*2*2*2*2;
+  unsigned int k = 0xffffffff / 2;  // MAXINT32 /2
 
   while (a < k) {
     a *= 2;
@@ -105,37 +107,27 @@ myfloat mfdivvv(myfloat a, myfloat b) {
 
   unsigned weadd;
 
-  // d = 0;
-  if (d > 0) {
-    int st1 = 0;
-    int dd = 1;
-    while (dd < d) {
-      st1++;
-      dd *= 2;
+  if (newe <= 142) d = 0;  // 2^-10 -> stop recursive add
+  if ((d > 0)) {
+    unsigned a1 = d;
+    st2 = newe;
+    while (a1 < MAX_NUMBER / 2) {
+      a1 <<= 1;
+      st2--;
     }
-    dd = 1;
-    while (dd < b) {
-      st2++;
-      dd *= 2;
+    a1 = a1 | (st2 << MANTISSA_BITS);
+
+    unsigned a2 = b;
+    st2 = MF_EXP_BIAS + 24;
+    while (a2 < MAX_NUMBER / 2) {
+      a2 <<= 1;
+      st2--;
     }
-    st2 = st1 - st2;  // power of 2
+    a2 = a2 | (st2 << MANTISSA_BITS);
 
-    // st2 = 1;
+    weadd = mfdivvv(a1, a2);
 
-    unsigned g = 1;
-
-    int dva = 1;
-    if (st2 < 0) {
-      for (int i = st2; i <= 0; i++) dva *= 2;
-
-      res *= dva;
-
-      res++;
-
-      newe += (st2 - 1);
-    }
-
-    // printfloat("---we should add ->>", weadd);
+    printfloat("additional div result", weadd);
   }
 
   a = res;
@@ -145,7 +137,11 @@ myfloat mfdivvv(myfloat a, myfloat b) {
     newe--;
   }
 
-  return a | ((myfloat)(newe) << MANTISSA_BITS);
+  a = a | ((myfloat)(newe) << MANTISSA_BITS);
+  if (d == 0)
+    return a;
+  else
+    return mfadd(a, weadd);
 }
 
 myfloat mfmul(myfloat a, myfloat b) {
@@ -191,6 +187,7 @@ double mf2double(myfloat f) {
 int main(void) {
   float a = 1;
   float b = 3;
+  bool run = true;
 
   /*
   int fail = 0;
