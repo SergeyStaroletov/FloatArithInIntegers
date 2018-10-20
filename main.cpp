@@ -6,34 +6,64 @@
 typedef unsigned int myfloat;
 
 #define MF_EXP_BIAS 0x80
-#define MAX_NUMBER 16777216  // 2^24
-#define MANTISSA_BITS 24
+#define MAX_NUMBER (16777216 / 2)  // 2^23
+#define MANTISSA_BITS 23
+//#define MASK 0xFFFFFE
+#define MASK (MAX_NUMBER - 1)
 
-bool run;
 myfloat mfadd(myfloat a, myfloat b) {
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
+
+  char signA = a >> 31;
+  char signB = b >> 31;
+
+  char sign = 0;
+
+  ea &= 0xff;  // clear the sign
+  eb &= 0xff;
+
   if (ea > eb) {
-    a &= 0xFFFFFF;
-    b = (b & 0xFFFFFF) >> (ea - eb);
-    if ((a += b) > 0xFFFFFF) a >>= 1, ++ea;
+    a &= MASK;
+    b = (b & MASK) >> (ea - eb);
+    if ((a += b) > MASK) {
+      a >>= 1;
+      ++ea;
+    }
+
+    ea = (sign << 8) + ea;
+
     return a | ((myfloat)ea << MANTISSA_BITS);
+
   } else if (eb > ea) {
-    b &= 0xFFFFFF;
-    a = (a & 0xFFFFFF) >> (eb - ea);
-    if ((b += a) > 0xFFFFFF) b >>= 1, ++eb;
+    b &= MASK;
+    a = (a & MASK) >> (eb - ea);
+    if ((b += a) > MASK) {
+      b >>= 1;
+      ++eb;
+    }
+    eb = (sign << 8) + eb;
     return b | ((myfloat)eb << MANTISSA_BITS);
+
   } else {
-    return (((a & 0xFFFFFF) + (b & 0xFFFFFF)) >> 1) |
-           ((myfloat)++ea << MANTISSA_BITS);
+    ea++;
+
+    ea = (sign << 8) + ea;
+
+    return (((a & MASK) + (b & MASK)) >> 1) | (ea << MANTISSA_BITS);
   }
 }
 
 void printfloat(char* str, myfloat f) {
   printf("%s = ", str);
+
+  char sign = f >> 31;
   int e = f >> MANTISSA_BITS;
+
+  e &= 0xff;
+
   e -= MF_EXP_BIAS;
-  unsigned ff = f & 0xffffff;
-  printf("[%d %d] = ", e, ff);
+  unsigned ff = f & MASK;
+  printf("[%d %d %d] = ", sign, e, ff);
   float fl = ff;
 
   if (ff == 0) {
@@ -58,26 +88,17 @@ void printfloat(char* str, myfloat f) {
   printf("\n");
 }
 
-/*
- *
- */
-
-myfloat mfshow(myfloat a) {
-  unsigned ea = a >> MANTISSA_BITS;
-
-  // a <<= 8;
-  a &= 0xffffff;
-
-  printf("exp = %d, data = %u\n", ea, a);
-}
-
 // div
 myfloat mfdivvv(myfloat a, myfloat b) {
   if (a == 0) return 0;  // to be fix to inf
+  char signA = a >> 31;
+  char signB = b >> 31;
 
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
-  a &= 0xffffff;
-  b &= 0xffffff;
+  a &= MASK;
+  b &= MASK;
+  ea &= 0xff;  // clear the sign
+  eb &= 0xff;
 
   int newe = MANTISSA_BITS + ((ea - eb) + MF_EXP_BIAS);
   int ee = 0;
@@ -91,7 +112,7 @@ myfloat mfdivvv(myfloat a, myfloat b) {
 
   newe -= ee;
 
-  if (b == 0) return 0;
+  if (b == 0) return ((0xff << MANTISSA_BITS) + 0x800000);
 
   while ((b % 2) == 0) {
     b >>= 1;
@@ -123,6 +144,7 @@ myfloat mfdivvv(myfloat a, myfloat b) {
       a2 <<= 1;
       st2--;
     }
+
     a2 = a2 | (st2 << MANTISSA_BITS);
 
     weadd = mfdivvv(a1, a2);
@@ -137,6 +159,10 @@ myfloat mfdivvv(myfloat a, myfloat b) {
     newe--;
   }
 
+  char sign = (signA + signB) % 2;
+
+  newe = (sign << 8) + newe;
+
   a = a | ((myfloat)(newe) << MANTISSA_BITS);
   if (d == 0)
     return a;
@@ -145,27 +171,50 @@ myfloat mfdivvv(myfloat a, myfloat b) {
 }
 
 myfloat mfmul(myfloat a, myfloat b) {
-  unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS,
-           e = ea + eb - MF_EXP_BIAS;
-  myfloat p = ((a & 0xFFFFFF) * (b & 0xFFFFFF)) >> MANTISSA_BITS;
+  unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
+
+  char signA = a >> 31;
+  char signB = b >> 31;
+  ea &= 0xff;  // clear the sign
+  eb &= 0xff;
+
+  char e = ea + eb - MF_EXP_BIAS;
+
+  myfloat p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
+
+  char sign = (signA + signB) % 2;
+
   return p | ((myfloat)e << MANTISSA_BITS);
 }
 
 myfloat double2mf(double x) {
   myfloat f;
   unsigned e = MF_EXP_BIAS + MANTISSA_BITS;
-  if (x <= 0) return 0;
+  char sign = 0;
+  if (x < 0) {
+    sign = 1;
+    x = x * (-1);
+  }
+  if (x == 0) return 0;
   while (x < MAX_NUMBER / 2) x *= 2, --e;
   while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
   f = x;
-  return f | ((myfloat)e << MANTISSA_BITS);
+
+  e = (sign << 8) + e;
+
+  return f | ((myfloat)e << (MANTISSA_BITS));
 }
 
 double mf2double(myfloat f) {
-  int e = f >> MANTISSA_BITS;
+  char sign = (f >> 31);
+  int e = f >> (MANTISSA_BITS);
+  e &= 0xff;
   e -= MF_EXP_BIAS;
-  int ff = f & 0xffffff;
+
+  int ff = f & MASK;
   float fl = ff;
+
+  if (e == 0xff && ff == 0x800000) return INFINITY;
 
   if (e > 0)
     while (e > 0) {
@@ -178,8 +227,9 @@ double mf2double(myfloat f) {
       e++;
     }
   }
-
   fl /= MAX_NUMBER;  // 2^24
+
+  if (sign) fl *= -1;
 
   return fl;
 }
@@ -189,6 +239,9 @@ int main(void) {
   float b = 3;
   bool run = true;
 
+  // printfloat("TEST 500=", double2mf(-123));
+
+  printf("test - = %f\n", mf2double(double2mf(-123)));
   /*
   int fail = 0;
 
@@ -239,11 +292,11 @@ int main(void) {
     if (a == INFINITY) continue;
     if (b == INFINITY) continue;
 
-    float c = a / b;
-    // float c = a + b;
+    // float c = a / b;
+    float c = a + b;
 
-    myfloat cc = (mfdivvv(double2mf(a), double2mf(b)));
-    // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
+    // myfloat cc = (mfdivvv(double2mf(a), double2mf(b)));
+    myfloat cc = (mfadd(double2mf(a), double2mf(b)));
 
     float c1 = mf2double(cc);
 
@@ -263,7 +316,7 @@ int main(void) {
     else {
       printf("FAILED!\n");
       // printfloat("-",cc);
-      mfshow(cc);
+      // mfshow(cc);
       fail++;
     }
   }
