@@ -3,57 +3,61 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef unsigned int myfloat;
+typedef unsigned int pseudofloat;
 
 #define EXP_BIAS 0x80
 #define MAX_NUMBER 8388608  // 2^23
 #define MANTISSA_BITS 23
+#define EXP_SIZE 8
+#define EXP_MASK 0xff
 #define MASK (MAX_NUMBER - 1)
+#define MAX_NUMBER_FIT (0xffffffff / 2)  // 2^32 - sign
 
-myfloat mfadd(myfloat a, myfloat b) {
-  unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
+pseudofloat mfadd(pseudofloat first, pseudofloat second) {
+  unsigned exp_first = first >> MANTISSA_BITS,
+           exp_second = second >> MANTISSA_BITS;
 
-  char signA = a >> 31;
-  char signB = b >> 31;
+  char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
+  char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
 
   char sign = 0;
 
-  ea &= 0xff;  // clear the sign
-  eb &= 0xff;
+  exp_first &= EXP_MASK;  // clear the sign
+  exp_second &= EXP_MASK;
 
-  if (ea > eb) {
-    a &= MASK;
-    b = (b & MASK) >> (ea - eb);
-    if ((a += b) > MASK) {
-      a >>= 1;
-      ++ea;
+  if (exp_first > exp_second) {
+    first &= MASK;
+    second = (second & MASK) >> (exp_first - exp_second);
+    if ((first += second) > MASK) {
+      first >>= 1;
+      ++exp_first;
     }
 
-    ea = (sign << 8) + ea;
+    exp_first = (sign << EXP_SIZE) + exp_first;
+    return first | ((pseudofloat)exp_first << MANTISSA_BITS);
 
-    return a | ((myfloat)ea << MANTISSA_BITS);
-
-  } else if (eb > ea) {
-    b &= MASK;
-    a = (a & MASK) >> (eb - ea);
-    if ((b += a) > MASK) {
-      b >>= 1;
-      ++eb;
+  } else if (exp_second > exp_first) {
+    second &= MASK;
+    first = (first & MASK) >> (exp_second - exp_first);
+    if ((second += first) > MASK) {
+      second >>= 1;
+      ++exp_second;
     }
-    eb = (sign << 8) + eb;
-    return b | ((myfloat)eb << MANTISSA_BITS);
+    exp_second = (sign << EXP_SIZE) + exp_second;
+    return second | ((pseudofloat)exp_second << MANTISSA_BITS);
 
   } else {
-    ea++;
-    ea = (sign << 8) + ea;
-    return (((a & MASK) + (b & MASK)) >> 1) | (ea << MANTISSA_BITS);
+    exp_first++;
+    exp_first = (sign << EXP_SIZE) + exp_first;
+    return (((first & MASK) + (second & MASK)) >> 1) |
+           (exp_first << MANTISSA_BITS);
   }
 }
 
-void printfraction(myfloat f) {
-  char sign = f >> 31;
+void printfraction(pseudofloat f) {
+  char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
-  e &= 0xff;
+  e &= EXP_MASK;
   e -= EXP_BIAS;
   unsigned ff = f & MASK;
   printf("[%d %d %d] = ", sign, e, ff);
@@ -65,9 +69,9 @@ void printfraction(myfloat f) {
   printf("%d*2^%d\n", ff, e);
 }
 
-void printfloat(const char* str, myfloat f) {
+void printfloat(const char* str, pseudofloat f) {
   printf("%s = ", str);
-  char sign = f >> 31;
+  char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
   e &= 0xff;
   e -= EXP_BIAS;
@@ -95,124 +99,122 @@ void printfloat(const char* str, myfloat f) {
 }
 
 // div
-myfloat mfdivvv(myfloat a, myfloat b) {
-  myfloat wereturn = 0;
-  int d = 0;
-  int newe;
-  int e_d;
+pseudofloat mfdivvv(pseudofloat first, pseudofloat second) {
+  pseudofloat we_return = 0;
+  int reminder = 0;
+  int new_exponent;
+  int exponent_reminder;
 
   do {
-    char signA = a >> 31;
-    char signB = b >> 31;
-    unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
-    a &= MASK;
-    b &= MASK;
-    ea &= 0xff;  // clear the sign
-    eb &= 0xff;
-    newe = MANTISSA_BITS + ((ea - eb) + EXP_BIAS);
+    char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
+    char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
+    unsigned exp_first = first >> MANTISSA_BITS,
+             exp_second = second >> MANTISSA_BITS;
+    first &= MASK;
+    second &= MASK;
+    exp_first &= EXP_MASK;  // clear the sign
+    exp_second &= EXP_MASK;
+    new_exponent = MANTISSA_BITS + ((exp_first - exp_second) + EXP_BIAS);
     int ee = 0;
-    unsigned int k = 0xffffffff / 2;  // MAXINT32 /2
-    while (a < k) {
-      a <<= 1;
+    while (first < MAX_NUMBER_FIT) {
+      first <<= 1;
       ++ee;
     }
-    newe -= ee;
+    new_exponent -= ee;
 
-    if (a == 0 && b == 0)
+    if (first == 0 && second == 0)
       return -1;  // nan = (0xfffff...)
-    else if (b == 0) {
-      if (a > 0)
+    else if (second == 0) {
+      if (first > 0)
         return (0x80 << MANTISSA_BITS);  //+inf
       else
         return (0xff << MANTISSA_BITS);  //-inf
     }
 
-    while ((b % 2) == 0) {
-      b >>= 1;
-      newe--;
+    while ((second % 2) == 0) {
+      second >>= 1;
+      new_exponent--;
     }  // hack: уменьшаем делимое
 
-    unsigned res = a / b;
+    unsigned div_result = first / second;
 
-    printf("res=%d\n", res);
+    printf("res=%d\n", div_result);
 
-    while (res >= MAX_NUMBER) {
-      res >>= 1;
-      newe++;
+    while (div_result >= MAX_NUMBER) {
+      div_result >>= 1;
+      new_exponent++;
     }
 
-    d = a - b * res;
+    reminder = first - second * div_result;
 
-    int st2 = 0;
+    int curr_exp = 0;
 
-    // if (newe <= 142) d = 0;  // 2^-10 -> stop recursive add
-
-    // d = 0;
-    myfloat a1 = 0, a2 = 0;
-    e_d = newe;
-    if ((d > 0)) {
-      a1 = d;
-      st2 = newe;
-      while (a1 < MAX_NUMBER / 2) {
-        a1 <<= 1;
-        st2--;
+    pseudofloat rem_div_number1 = 0, rem_div_number2 = 0;
+    exponent_reminder = new_exponent;
+    // check the reminder and create a number1/number2 solution
+    if ((reminder > 0)) {
+      rem_div_number1 = reminder;
+      curr_exp = new_exponent;
+      while (rem_div_number1 < MAX_NUMBER / 2) {
+        rem_div_number1 <<= 1;
+        curr_exp--;
       }
-      a1 = a1 | (st2 << MANTISSA_BITS);
+      rem_div_number1 = rem_div_number1 | (curr_exp << MANTISSA_BITS);
 
-      a2 = b;
-      st2 = EXP_BIAS + MANTISSA_BITS;
-      while (a2 < MAX_NUMBER / 2) {
-        a2 <<= 1;
-        st2--;
+      rem_div_number2 = second;
+      curr_exp = EXP_BIAS + MANTISSA_BITS;
+      while (rem_div_number2 < MAX_NUMBER / 2) {
+        rem_div_number2 <<= 1;
+        curr_exp--;
       }
-      a2 = a2 | (st2 << MANTISSA_BITS);
+      rem_div_number2 = rem_div_number2 | (curr_exp << MANTISSA_BITS);
     }
 
-    a = res;
+    first = div_result;
 
-    while (a <= MAX_NUMBER / 2) {
-      a <<= 1;
-      newe--;
+    while (first <= MAX_NUMBER / 2) {
+      first <<= 1;
+      new_exponent--;
     }
 
-    if (a == MAX_NUMBER) {
-      a >>= 1;
-      newe++;
+    if (first == MAX_NUMBER) {
+      first >>= 1;
+      new_exponent++;
     }
 
-    char sign = (signA + signB) % 2;
-    newe = (sign << 8) + newe;
-    a = a | ((myfloat)(newe) << MANTISSA_BITS);
+    char sign = (sign_first + sign_second) % 2;
+    new_exponent = (sign << EXP_SIZE) + new_exponent;
+    first = first | ((pseudofloat)(new_exponent) << MANTISSA_BITS);
 
-    wereturn = mfadd(wereturn, a);
+    we_return = mfadd(we_return, first);
 
-    a = a1;
-    b = a2;
+    first = rem_div_number1;
+    second = rem_div_number2;
 
-  } while ((d > 0) && (e_d >= 142));
-  return wereturn;
+  } while ((reminder > 0) && (exponent_reminder >= 142));
+  return we_return;
 }
 
-myfloat mfmul(myfloat a, myfloat b) {
+pseudofloat mfmul(pseudofloat a, pseudofloat b) {
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
-  char signA = a >> 31;
-  char signB = b >> 31;
-  ea &= 0xff;  // clear the sign
-  eb &= 0xff;
+  char signA = a >> (MANTISSA_BITS + EXP_SIZE);
+  char signB = b >> (MANTISSA_BITS + EXP_SIZE);
+  ea &= EXP_MASK;  // clear the sign
+  eb &= EXP_MASK;
   char e = ea + eb - EXP_BIAS;
-  myfloat p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
+  pseudofloat p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
   char sign = (signA + signB) % 2;
-  e = (sign << 8) + e;
-  return p | ((myfloat)e << MANTISSA_BITS);
+  e = (sign << EXP_SIZE) + e;
+  return p | ((pseudofloat)e << MANTISSA_BITS);
 }
 
-myfloat double2mf(double x);
+pseudofloat double2mf(double x);
 
-myfloat fromInt(int x, int rateofminus10) {
+pseudofloat fromInt(int x, int rateofminus10) {
   int zz = 1;
   for (int a = 0; a < rateofminus10; a++) zz *= 10;
 
-  myfloat first, second;
+  pseudofloat first, second;
   unsigned e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
   if (x < 0) {
@@ -222,9 +224,9 @@ myfloat fromInt(int x, int rateofminus10) {
   if (x == 0) first = 0;
   while (x < MAX_NUMBER / 2) x *= 2, --e;
   while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
-  e = (sign << 8) + e;
+  e = (sign << EXP_SIZE) + e;
 
-  first = x | ((myfloat)e << (MANTISSA_BITS));
+  first = x | ((pseudofloat)e << (MANTISSA_BITS));
 
   e = EXP_BIAS + MANTISSA_BITS;
   sign = 0;
@@ -237,14 +239,14 @@ myfloat fromInt(int x, int rateofminus10) {
   while (x >= MAX_NUMBER && e <= 255) {
     x /= 2, ++e;
   }
-  e = (sign << 8) + e;
-  second = x | ((myfloat)e << (MANTISSA_BITS));
+  e = (sign << EXP_SIZE) + e;
+  second = x | ((pseudofloat)e << (MANTISSA_BITS));
 
   return mfdivvv(first, second);
 }
 
-myfloat double2mf(double x) {
-  myfloat f;
+pseudofloat double2mf(double x) {
+  pseudofloat f;
   unsigned e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
   if (x < 0) {
@@ -255,14 +257,14 @@ myfloat double2mf(double x) {
   while (x < MAX_NUMBER / 2) x *= 2, --e;
   while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
   f = x;
-  e = (sign << 8) + e;
-  return f | ((myfloat)e << (MANTISSA_BITS));
+  e = (sign << EXP_SIZE) + e;
+  return f | ((pseudofloat)e << (MANTISSA_BITS));
 }
 
-double mf2double(myfloat f) {
-  char sign = (f >> 31);
+double mf2double(pseudofloat f) {
+  char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> (MANTISSA_BITS);
-  e &= 0xff;
+  e &= EXP_MASK;
   e -= EXP_BIAS;
   int ff = f & MASK;
   float fl = ff;
@@ -352,7 +354,7 @@ int main(void) {
     float c = a / b;
     // float c = a + b;
 
-    myfloat cc = (mfdivvv(double2mf(a), double2mf(b)));
+    pseudofloat cc = (mfdivvv(double2mf(a), double2mf(b)));
     // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
 
     float c1 = mf2double(cc);
@@ -387,7 +389,7 @@ int main(void) {
 
   printf("\n %d failed\n", fail);
 
-  myfloat fnew = fromInt(5, 3);
+  pseudofloat fnew = fromInt(5, 3);
 
   printfraction(fnew);
 
