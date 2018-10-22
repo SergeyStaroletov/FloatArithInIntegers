@@ -5,10 +5,9 @@
 
 typedef unsigned int myfloat;
 
-#define MF_EXP_BIAS 0x80
+#define EXP_BIAS 0x80
 #define MAX_NUMBER 8388608  // 2^23
 #define MANTISSA_BITS 23
-//#define MASK 0xFFFFFE
 #define MASK (MAX_NUMBER - 1)
 
 myfloat mfadd(myfloat a, myfloat b) {
@@ -55,154 +54,143 @@ void printfraction(myfloat f) {
   char sign = f >> 31;
   int e = f >> MANTISSA_BITS;
   e &= 0xff;
-  e -= MF_EXP_BIAS;
+  e -= EXP_BIAS;
   unsigned ff = f & MASK;
   printf("[%d %d %d] = ", sign, e, ff);
-
   while ((ff % 2) == 0) {
     ff >>= 1;
     e++;
   }
-
   e -= MANTISSA_BITS;
-
   printf("%d*2^%d\n", ff, e);
 }
 
 void printfloat(const char* str, myfloat f) {
   printf("%s = ", str);
-
   char sign = f >> 31;
   int e = f >> MANTISSA_BITS;
-
   e &= 0xff;
-
-  e -= MF_EXP_BIAS;
+  e -= EXP_BIAS;
   unsigned ff = f & MASK;
   printf("[%d %d %d] = ", sign, e, ff);
   float fl = ff;
-
   if (ff == 0) {
     printf("0");
     return;
   }
-
   if (e > 0)
     while (e > 0) {
-      fl = fl * 2;
+      fl *= 2;
       e--;
     }
   else {
     while (e < 0) {
-      fl = fl / 2;
+      fl /= 2;
       e++;
     }
   }
-
-  fl /= MAX_NUMBER;  // 2^24
+  fl /= MAX_NUMBER;  // 2^23
   printf("%e", fl);
   printf("\n");
 }
 
 // div
 myfloat mfdivvv(myfloat a, myfloat b) {
-  char signA = a >> 31;
-  char signB = b >> 31;
+  myfloat wereturn = 0;
+  int d = 0;
+  int newe;
+  int e_d;
 
-  unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
-  a &= MASK;
-  b &= MASK;
-
-  ea &= 0xff;  // clear the sign
-  eb &= 0xff;
-
-  int newe = MANTISSA_BITS + ((ea - eb) + MF_EXP_BIAS);
-  int ee = 0;
-
-  unsigned int k = 0xffffffff / 2;  // MAXINT32 /2
-
-  while (a < k) {
-    a <<= 1;
-    ++ee;
-  }
-
-  newe -= ee;
-
-  if (a == 0 && b == 0)
-    return -1;  // nan = (0xfffff...)
-  else if (b == 0) {
-    if (a > 0)
-      return (0x80 << MANTISSA_BITS);  //+inf
-    else
-      return (0xff << MANTISSA_BITS);  //-inf
-  }
-
-  while ((b % 2) == 0) {
-    b >>= 1;
-    newe--;
-  }  // hack: уменьшаем делимое
-
-  unsigned res = a / b;
-
-  printf("res=%d\n", res);
-
-  while (res >= MAX_NUMBER) {
-    res >>= 1;
-    newe++;
-  }
-
-  int d = a - b * res;
-
-  int st2 = 0;
-
-  unsigned weadd;
-
-  if (newe <= 142) d = 0;  // 2^-10 -> stop recursive add
-
-  // d = 0;
-  if ((d > 0)) {
-    unsigned a1 = d;
-    st2 = newe;
-    while (a1 < MAX_NUMBER / 2) {
-      a1 <<= 1;
-      st2--;
+  do {
+    char signA = a >> 31;
+    char signB = b >> 31;
+    unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
+    a &= MASK;
+    b &= MASK;
+    ea &= 0xff;  // clear the sign
+    eb &= 0xff;
+    newe = MANTISSA_BITS + ((ea - eb) + EXP_BIAS);
+    int ee = 0;
+    unsigned int k = 0xffffffff / 2;  // MAXINT32 /2
+    while (a < k) {
+      a <<= 1;
+      ++ee;
     }
-    a1 = a1 | (st2 << MANTISSA_BITS);
+    newe -= ee;
 
-    unsigned a2 = b;
-    st2 = MF_EXP_BIAS + MANTISSA_BITS;
-    while (a2 < MAX_NUMBER / 2) {
-      a2 <<= 1;
-      st2--;
+    if (a == 0 && b == 0)
+      return -1;  // nan = (0xfffff...)
+    else if (b == 0) {
+      if (a > 0)
+        return (0x80 << MANTISSA_BITS);  //+inf
+      else
+        return (0xff << MANTISSA_BITS);  //-inf
     }
 
-    a2 = a2 | (st2 << MANTISSA_BITS);
+    while ((b % 2) == 0) {
+      b >>= 1;
+      newe--;
+    }  // hack: уменьшаем делимое
 
-    weadd = mfdivvv(a1, a2);
+    unsigned res = a / b;
 
-    printfloat("additional div result", weadd);
-  }
+    printf("res=%d\n", res);
 
-  a = res;
+    while (res >= MAX_NUMBER) {
+      res >>= 1;
+      newe++;
+    }
 
-  while (a <= MAX_NUMBER / 2) {
-    a <<= 1;
-    newe--;
-  }
+    d = a - b * res;
 
-  if (a == MAX_NUMBER) {
-    a >>= 1;
-    newe++;
-  }
+    int st2 = 0;
 
-  char sign = (signA + signB) % 2;
-  newe = (sign << 8) + newe;
+    // if (newe <= 142) d = 0;  // 2^-10 -> stop recursive add
 
-  a = a | ((myfloat)(newe) << MANTISSA_BITS);
-  if (d == 0 || weadd == 0)
-    return a;
-  else
-    return mfadd(a, weadd);
+    // d = 0;
+    myfloat a1 = 0, a2 = 0;
+    e_d = newe;
+    if ((d > 0)) {
+      a1 = d;
+      st2 = newe;
+      while (a1 < MAX_NUMBER / 2) {
+        a1 <<= 1;
+        st2--;
+      }
+      a1 = a1 | (st2 << MANTISSA_BITS);
+
+      a2 = b;
+      st2 = EXP_BIAS + MANTISSA_BITS;
+      while (a2 < MAX_NUMBER / 2) {
+        a2 <<= 1;
+        st2--;
+      }
+      a2 = a2 | (st2 << MANTISSA_BITS);
+    }
+
+    a = res;
+
+    while (a <= MAX_NUMBER / 2) {
+      a <<= 1;
+      newe--;
+    }
+
+    if (a == MAX_NUMBER) {
+      a >>= 1;
+      newe++;
+    }
+
+    char sign = (signA + signB) % 2;
+    newe = (sign << 8) + newe;
+    a = a | ((myfloat)(newe) << MANTISSA_BITS);
+
+    wereturn = mfadd(wereturn, a);
+
+    a = a1;
+    b = a2;
+
+  } while ((d > 0) && (e_d >= 142));
+  return wereturn;
 }
 
 myfloat mfmul(myfloat a, myfloat b) {
@@ -211,7 +199,7 @@ myfloat mfmul(myfloat a, myfloat b) {
   char signB = b >> 31;
   ea &= 0xff;  // clear the sign
   eb &= 0xff;
-  char e = ea + eb - MF_EXP_BIAS;
+  char e = ea + eb - EXP_BIAS;
   myfloat p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
   char sign = (signA + signB) % 2;
   e = (sign << 8) + e;
@@ -225,7 +213,7 @@ myfloat fromInt(int x, int rateofminus10) {
   for (int a = 0; a < rateofminus10; a++) zz *= 10;
 
   myfloat first, second;
-  unsigned e = MF_EXP_BIAS + MANTISSA_BITS;
+  unsigned e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
   if (x < 0) {
     sign = 1;
@@ -238,7 +226,7 @@ myfloat fromInt(int x, int rateofminus10) {
 
   first = x | ((myfloat)e << (MANTISSA_BITS));
 
-  e = MF_EXP_BIAS + MANTISSA_BITS;
+  e = EXP_BIAS + MANTISSA_BITS;
   sign = 0;
 
   x = zz;
@@ -257,7 +245,7 @@ myfloat fromInt(int x, int rateofminus10) {
 
 myfloat double2mf(double x) {
   myfloat f;
-  unsigned e = MF_EXP_BIAS + MANTISSA_BITS;
+  unsigned e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
   if (x < 0) {
     sign = 1;
@@ -275,7 +263,7 @@ double mf2double(myfloat f) {
   char sign = (f >> 31);
   int e = f >> (MANTISSA_BITS);
   e &= 0xff;
-  e -= MF_EXP_BIAS;
+  e -= EXP_BIAS;
   int ff = f & MASK;
   float fl = ff;
   if (sign == 0 && e == 0 && ff == 0) return INFINITY;
