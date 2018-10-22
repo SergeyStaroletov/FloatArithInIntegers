@@ -13,16 +13,32 @@ typedef unsigned int pseudofloat;
 #define MASK (MAX_NUMBER - 1)
 #define MAX_NUMBER_FIT (0xffffffff / 2)  // 2^32 - sign
 
-pseudofloat mfadd(pseudofloat first, pseudofloat second) {
+pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
+  unsigned exp_first = first >> MANTISSA_BITS,
+           exp_second = second >> MANTISSA_BITS;
+
+  exp_first &= EXP_MASK;  // clear the sign
+  exp_second &= EXP_MASK;
+
+  // TODO: implement sub
+  return first;
+}
+
+// TODO: only works for both positives
+pseudofloat add_pseudo(pseudofloat first, pseudofloat second) {
   unsigned exp_first = first >> MANTISSA_BITS,
            exp_second = second >> MANTISSA_BITS;
 
   char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
   char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
 
+  // TODO: check the signs
+  (void)sign_first;
+  (void)sign_second;
+
   char sign = 0;
 
-  exp_first &= EXP_MASK;  // clear the sign
+  exp_first &= EXP_MASK;
   exp_second &= EXP_MASK;
 
   if (exp_first > exp_second) {
@@ -54,7 +70,7 @@ pseudofloat mfadd(pseudofloat first, pseudofloat second) {
   }
 }
 
-void printfraction(pseudofloat f) {
+void print_pseudo_representation(pseudofloat f) {
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
   e &= EXP_MASK;
@@ -69,11 +85,11 @@ void printfraction(pseudofloat f) {
   printf("%d*2^%d\n", ff, e);
 }
 
-void printfloat(const char* str, pseudofloat f) {
+void print_pseudo_as_float(const char* str, pseudofloat f) {
   printf("%s = ", str);
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
-  e &= 0xff;
+  e &= EXP_MASK;
   e -= EXP_BIAS;
   unsigned ff = f & MASK;
   printf("[%d %d %d] = ", sign, e, ff);
@@ -98,8 +114,8 @@ void printfloat(const char* str, pseudofloat f) {
   printf("\n");
 }
 
-// div
-pseudofloat mfdivvv(pseudofloat first, pseudofloat second) {
+// TODO: check the accuracy again
+pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
   pseudofloat we_return = 0;
   int reminder = 0;
   int new_exponent;
@@ -186,16 +202,18 @@ pseudofloat mfdivvv(pseudofloat first, pseudofloat second) {
     new_exponent = (sign << EXP_SIZE) + new_exponent;
     first = first | ((pseudofloat)(new_exponent) << MANTISSA_BITS);
 
-    we_return = mfadd(we_return, first);
+    we_return = add_pseudo(we_return, first);
 
     first = rem_div_number1;
     second = rem_div_number2;
 
+    // continue to divide, get the reminder and add it to the result
   } while ((reminder > 0) && (exponent_reminder >= 142));
+
   return we_return;
 }
 
-pseudofloat mfmul(pseudofloat a, pseudofloat b) {
+pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
   char signA = a >> (MANTISSA_BITS + EXP_SIZE);
   char signB = b >> (MANTISSA_BITS + EXP_SIZE);
@@ -208,11 +226,15 @@ pseudofloat mfmul(pseudofloat a, pseudofloat b) {
   return p | ((pseudofloat)e << MANTISSA_BITS);
 }
 
-pseudofloat double2mf(double x);
+pseudofloat double2pseudo(double x);  // forward
 
-pseudofloat fromInt(int x, int rateofminus10) {
-  int zz = 1;
-  for (int a = 0; a < rateofminus10; a++) zz *= 10;
+/* @param x - number
+ * @param rate_of_minus_10 - power of 10  to divide the number
+ * @return x * pow(10, -rate_of_minus10)
+ */
+pseudofloat pseudo_from_int(int x, int rate_of_minus10) {
+  int pow_of_10 = 1;
+  for (int i = 0; i < rate_of_minus10; i++) pow_of_10 *= 10;
 
   pseudofloat first, second;
   unsigned e = EXP_BIAS + MANTISSA_BITS;
@@ -231,7 +253,7 @@ pseudofloat fromInt(int x, int rateofminus10) {
   e = EXP_BIAS + MANTISSA_BITS;
   sign = 0;
 
-  x = zz;
+  x = pow_of_10;
   while (x < MAX_NUMBER / 2) {
     x *= 2;
     --e;
@@ -242,10 +264,10 @@ pseudofloat fromInt(int x, int rateofminus10) {
   e = (sign << EXP_SIZE) + e;
   second = x | ((pseudofloat)e << (MANTISSA_BITS));
 
-  return mfdivvv(first, second);
+  return div_pseudo(first, second);
 }
 
-pseudofloat double2mf(double x) {
+pseudofloat double2pseudo(double x) {
   pseudofloat f;
   unsigned e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
@@ -261,7 +283,7 @@ pseudofloat double2mf(double x) {
   return f | ((pseudofloat)e << (MANTISSA_BITS));
 }
 
-double mf2double(pseudofloat f) {
+double pseudo2double(pseudofloat f) {
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> (MANTISSA_BITS);
   e &= EXP_MASK;
@@ -294,54 +316,12 @@ double mf2double(pseudofloat f) {
  *
  */
 int main(void) {
-  float a = 1;
-  float b = 3;
-  bool run = true;
-
-  // printfloat("TEST 500=", double2mf(-123));
-
-  printf("test - = %f\n", mf2double(double2mf(-123)));
-  /*
-  int fail = 0;
-
-  for (int i = 0; i < 10000; i++) {
-    float a = 1.0 * (rand() % 100000) / (rand() % 1000);
-    float b = 1.0 * (rand() % 10) / (rand() % 1000);
-
-    float aa = mf2double(double2mf(a));
-
-    if (fabs(aa - a) > 0.00000001) {
-      fail++;
-      printf("bug got= %f  ideal=%f\n", aa, a);
-    }
-  }
-
-  printf("!!! fails = %d\n", fail);
-
- */
+  printf("test - = %f\n", pseudo2double(double2pseudo(-123)));
 
   int fail = 0;
-  // unsigned flo = double2mf(2.0);
-  // printfloat("2^1", flo);
-  // float b = 56.7787878676765666;
-
-  /*for (i = 0; i < sizeof(testConvData) / sizeof(testConvData[0]); i++)
-    printf("%e -> 0x%06lX -> %e\n",
-           testConvData[i],
-           (unsigned long)double2mf(testConvData[i]),
-           mf2double(double2mf(testConvData[i])));*/
-
-  // printf("300 * 5 = %e\n", mf2double(mfmul(double2mf(300),double2mf(5))));
-  // printf("300 / 5 = %e  0x%06lX\n",
-  // mf2double(mfdivvv(double2mf(a),double2mf(b))), (unsigned long)mf2double
-  // (mfdivvv(double2mf(a),double2mf(b))));
-  // printf("*1 / 3 = %e  0x%06lX\n", (float)(a / b), (unsigned long)a / b);
-  // printfloat("TEST 500=", double2mf(56.7));
-  // printfloat("TEST myfloat=", mfdivvv(double2mf(a), double2mf(b)));
 
   printf("testing ...\n");
 
-  // int fail = 0;
   for (int i = 0; i < 1000; i++) {
     float a = 1.0 * (rand() % 100000) / (rand() % 1000);
     float b = 1.0 * (rand() % 10) / (rand() % 1000);
@@ -354,21 +334,21 @@ int main(void) {
     float c = a / b;
     // float c = a + b;
 
-    pseudofloat cc = (mfdivvv(double2mf(a), double2mf(b)));
+    pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
     // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
 
-    float c1 = mf2double(cc);
+    float c1 = pseudo2double(cc);
 
-    printfloat("a=", double2mf(a));
-    printfloat("b=", double2mf(b));
+    print_pseudo_as_float("a=", double2pseudo(a));
+    print_pseudo_as_float("b=", double2pseudo(b));
 
-    printfloat("our result", cc);
+    print_pseudo_as_float("our result", cc);
     double diff = fabs(c - c1);
-    printfloat("diff=", double2mf(diff));
+    print_pseudo_as_float("diff=", double2pseudo(diff));
 
     printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
 
-    printfloat("etalon", double2mf(c));
+    print_pseudo_as_float("etalon", double2pseudo(c));
 
     if (diff < 0.126 || isnan(diff))
       printf("passed!\n");
@@ -389,11 +369,9 @@ int main(void) {
 
   printf("\n %d failed\n", fail);
 
-  pseudofloat fnew = fromInt(5, 3);
-
-  printfraction(fnew);
-
-  printfraction(double2mf(-0.125));
+  pseudofloat fnew = pseudo_from_int(5, 3);
+  print_pseudo_representation(fnew);
+  print_pseudo_representation(double2pseudo(-0.125));
 
   return 0;
 }
