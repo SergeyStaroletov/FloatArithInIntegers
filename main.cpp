@@ -6,7 +6,7 @@
 typedef unsigned int myfloat;
 
 #define MF_EXP_BIAS 0x80
-#define MAX_NUMBER (16777216 / 2)  // 2^23
+#define MAX_NUMBER 8388608  // 2^23
 #define MANTISSA_BITS 23
 //#define MASK 0xFFFFFE
 #define MASK (MAX_NUMBER - 1)
@@ -46,14 +46,30 @@ myfloat mfadd(myfloat a, myfloat b) {
 
   } else {
     ea++;
-
     ea = (sign << 8) + ea;
-
     return (((a & MASK) + (b & MASK)) >> 1) | (ea << MANTISSA_BITS);
   }
 }
 
-void printfloat(char* str, myfloat f) {
+void printfraction(myfloat f) {
+  char sign = f >> 31;
+  int e = f >> MANTISSA_BITS;
+  e &= 0xff;
+  e -= MF_EXP_BIAS;
+  unsigned ff = f & MASK;
+  printf("[%d %d %d] = ", sign, e, ff);
+
+  while ((ff % 2) == 0) {
+    ff >>= 1;
+    e++;
+  }
+
+  e -= MANTISSA_BITS;
+
+  printf("%d*2^%d\n", ff, e);
+}
+
+void printfloat(const char* str, myfloat f) {
   printf("%s = ", str);
 
   char sign = f >> 31;
@@ -90,7 +106,6 @@ void printfloat(char* str, myfloat f) {
 
 // div
 myfloat mfdivvv(myfloat a, myfloat b) {
-  if (a == 0) return 0;  // to be fix to inf
   char signA = a >> 31;
   char signB = b >> 31;
 
@@ -107,15 +122,21 @@ myfloat mfdivvv(myfloat a, myfloat b) {
   unsigned int k = 0xffffffff / 2;  // MAXINT32 /2
 
   while (a < k) {
-    a *= 2;
+    a <<= 1;
     ++ee;
   }
 
   newe -= ee;
 
-  if (b == 0) {
-    return (0x80 << MANTISSA_BITS);
+  if (a == 0 && b == 0)
+    return -1;  // nan = (0xfffff...)
+  else if (b == 0) {
+    if (a > 0)
+      return (0x80 << MANTISSA_BITS);  //+inf
+    else
+      return (0xff << MANTISSA_BITS);  //-inf
   }
+
   while ((b % 2) == 0) {
     b >>= 1;
     newe--;
@@ -125,6 +146,11 @@ myfloat mfdivvv(myfloat a, myfloat b) {
 
   printf("res=%d\n", res);
 
+  while (res >= MAX_NUMBER) {
+    res >>= 1;
+    newe++;
+  }
+
   int d = a - b * res;
 
   int st2 = 0;
@@ -132,6 +158,8 @@ myfloat mfdivvv(myfloat a, myfloat b) {
   unsigned weadd;
 
   if (newe <= 142) d = 0;  // 2^-10 -> stop recursive add
+
+  // d = 0;
   if ((d > 0)) {
     unsigned a1 = d;
     st2 = newe;
@@ -162,12 +190,16 @@ myfloat mfdivvv(myfloat a, myfloat b) {
     newe--;
   }
 
-  char sign = (signA + signB) % 2;
+  if (a == MAX_NUMBER) {
+    a >>= 1;
+    newe++;
+  }
 
+  char sign = (signA + signB) % 2;
   newe = (sign << 8) + newe;
 
   a = a | ((myfloat)(newe) << MANTISSA_BITS);
-  if (d == 0)
+  if (d == 0 || weadd == 0)
     return a;
   else
     return mfadd(a, weadd);
@@ -184,6 +216,43 @@ myfloat mfmul(myfloat a, myfloat b) {
   char sign = (signA + signB) % 2;
   e = (sign << 8) + e;
   return p | ((myfloat)e << MANTISSA_BITS);
+}
+
+myfloat double2mf(double x);
+
+myfloat fromInt(int x, int rateofminus10) {
+  int zz = 1;
+  for (int a = 0; a < rateofminus10; a++) zz *= 10;
+
+  myfloat first, second;
+  unsigned e = MF_EXP_BIAS + MANTISSA_BITS;
+  char sign = 0;
+  if (x < 0) {
+    sign = 1;
+    x = x * (-1);
+  }
+  if (x == 0) first = 0;
+  while (x < MAX_NUMBER / 2) x *= 2, --e;
+  while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
+  e = (sign << 8) + e;
+
+  first = x | ((myfloat)e << (MANTISSA_BITS));
+
+  e = MF_EXP_BIAS + MANTISSA_BITS;
+  sign = 0;
+
+  x = zz;
+  while (x < MAX_NUMBER / 2) {
+    x *= 2;
+    --e;
+  }
+  while (x >= MAX_NUMBER && e <= 255) {
+    x /= 2, ++e;
+  }
+  e = (sign << 8) + e;
+  second = x | ((myfloat)e << (MANTISSA_BITS));
+
+  return mfdivvv(first, second);
 }
 
 myfloat double2mf(double x) {
@@ -211,6 +280,7 @@ double mf2double(myfloat f) {
   float fl = ff;
   if (sign == 0 && e == 0 && ff == 0) return INFINITY;
   if (sign == 1 && e == 0 && ff == 0) return -INFINITY;
+  if (e == 127) return NAN;  //?
 
   if (e > 0)
     while (e > 0) {
@@ -282,11 +352,11 @@ int main(void) {
   printf("testing ...\n");
 
   // int fail = 0;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 1000; i++) {
     float a = 1.0 * (rand() % 100000) / (rand() % 1000);
     float b = 1.0 * (rand() % 10) / (rand() % 1000);
 
-    if (i < 3) continue;
+    // if (i < 157) continue;
 
     if (a == INFINITY) continue;
     if (b == INFINITY) continue;
@@ -303,14 +373,14 @@ int main(void) {
     printfloat("b=", double2mf(b));
 
     printfloat("our result", cc);
-    float diff = fabs(c - c1);
+    double diff = fabs(c - c1);
     printfloat("diff=", double2mf(diff));
 
     printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
 
     printfloat("etalon", double2mf(c));
 
-    if (diff < 0.01 || isnan(diff))
+    if (diff < 0.126 || isnan(diff))
       printf("passed!\n");
     else {
       printf("FAILED!\n");
@@ -328,6 +398,12 @@ int main(void) {
   // mf2double(mfadd(double2mf(1e-16),double2mf(1e-18))));
 
   printf("\n %d failed\n", fail);
+
+  myfloat fnew = fromInt(5, 3);
+
+  printfraction(fnew);
+
+  printfraction(double2mf(-0.125));
 
   return 0;
 }
