@@ -48,50 +48,50 @@ inline mul_pseudo(result, a, b) {
 
 
 // TODO: only works for both positives
-inline add_pseudo(result,  first,  second) {
-  int exp_first_ = first >> MANTISSA_BITS,
-           exp_second_ = second >> MANTISSA_BITS;
+inline add_pseudo(result,  add_first,  add_second) {
+  int exp_first_ = add_first >> MANTISSA_BITS,
+           exp_second_ = add_second >> MANTISSA_BITS;
 
   //byte sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
   //byte sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
 
   // TODO: check the signs
  
-  byte sign_ = 0;
+  byte add_sign = 0;
 
   exp_first_ = exp_first_ & EXP_MASK;
   exp_second_ = exp_second_ & EXP_MASK;
 
   if ::(exp_first_ > exp_second_) -> {
-    first = first & MASK;
-    second = (second & MASK) >> (exp_first_ - exp_second_);
-    first = first + second;
-    if  ::(first > MASK) -> {
-      first = first >> 1;
+    add_first = add_first & MASK;
+    add_second = (add_second & MASK) >> (exp_first_ - exp_second_);
+    add_first = add_first + add_second;
+    if  ::(add_first > MASK) -> {
+      add_first = add_first >> 1;
       exp_first_ = exp_first_ + 1;
     }
     ::else -> skip;
     fi
-    exp_first_ = (sign_ << EXP_SIZE) + exp_first_;
-    result = first | (exp_first << MANTISSA_BITS);
+    exp_first_ = (add_sign << EXP_SIZE) + exp_first_;
+    result = add_first | (exp_first << MANTISSA_BITS);
   } ::else -> 
         if ::(exp_second_ > exp_first_) -> {
-            second = second & MASK;
-            first = (first & MASK) >> (exp_second_ - exp_first_);
-            second = second + first;
-            if ::(second > MASK) -> {
-                second = second >> 1;
+            add_second = add_second & MASK;
+            add_first = (add_first & MASK) >> (exp_second_ - exp_first_);
+            add_second = add_second + add_first;
+            if ::(add_second > MASK) -> {
+                add_second = add_second >> 1;
                  exp_second_ = exp_second_ + 1;
              }
             ::else -> skip;
             fi
-        exp_second_ = (sign_ << EXP_SIZE) + exp_second_;
-        result =  second | (exp_second_ << MANTISSA_BITS);
+        exp_second_ = (add_sign << EXP_SIZE) + exp_second_;
+        result =  add_second | (exp_second_ << MANTISSA_BITS);
         } 
         ::else -> {
             exp_first_ = exp_first_ + 1;
-            exp_first_ = (sign << EXP_SIZE) + exp_first_;
-            result =  (((first & MASK) + (second & MASK)) >> 1) |(exp_first_ << MANTISSA_BITS);
+            exp_first_ = (add_sign << EXP_SIZE) + exp_first_;
+            result =  (((add_first & MASK) + (add_second & MASK)) >> 1) |(exp_first_ << MANTISSA_BITS);
         }
         fi
     fi    
@@ -196,7 +196,7 @@ inline add_pseudo(result,  first,  second) {
 
     byte sign = (sign_first + sign_second) % 2;
     new_exponent = (sign << EXP_SIZE) + new_exponent;
-    first = first | ((new_exponent) << MANTISSA_BITS);
+    first = first | (new_exponent << MANTISSA_BITS);
 
     add_pseudo(we_return, we_return, first);
 
@@ -211,19 +211,84 @@ inline add_pseudo(result,  first,  second) {
 }
 
 
+inline pseudo_from_int(result, xx, rate_of_minus10) {
+  int x = xx;  
+  int pow_of_10 = 1;
+  int i = 0;
+  do
+    ::(i < rate_of_minus10) -> {pow_of_10 = pow_of_10 * 10; i = i + 1;}
+    ::else -> break;
+  od
 
+  int first, second;
+
+  int e = EXP_BIAS + MANTISSA_BITS;
+  byte sign_ = 0;
+  if ::(x < 0) -> {
+    sign_ = 1;
+    x = 0 - x;
+  }  :: else -> skip;
+  fi
+
+
+  if ::(x == 0) -> first = 0;
+  ::else -> {
+  do    
+  ::(x < MAX_NUMBER / 2) -> { 
+  x = x * 2; 
+  e = e - 1; 
+  }:: else -> break;  
+  od
+  do
+   ::((x >= MAX_NUMBER) && (e <= 255)) -> { 
+    x = x / 2; e = e + 1;
+    } :: else -> break;
+  od
+  } 
+  fi
+
+  e = (sign_ << EXP_SIZE) + e;
+  first = x | (e << MANTISSA_BITS);
+  e = EXP_BIAS + MANTISSA_BITS;
+  sign_ = 0;
+  x = pow_of_10;
+
+  do
+  ::(x < (MAX_NUMBER / 2)) -> {
+    x = x * 2;
+    e = e - 1;
+  } ::else -> break;
+  od
+
+  do 
+  ::((x >= MAX_NUMBER) && (e <= 255)) -> {
+    x = x / 2;
+    e = e + 1;
+  } ::else -> break;
+  od
+
+  e = (sign_ << EXP_SIZE) + e;
+  second = x | (e << (MANTISSA_BITS));
+
+  div_pseudo(result, first, second);
+}
 
 
 active proctype main() {
 
-int num1 = 0;
-
-print_pseudo_representation(num1);
-
-int one = 1;
-int two = 2;
+int one;
+int two;
 int three;
-div_pseudo(three, one, two);
+
+pseudo_from_int(one, 1, 1);
+//pseudo_from_int(two, 2, 1);
+
+//div_pseudo(three, one, two);
+
+
+//print_pseudo_representation(three);
+
+ 
 
 
 }
