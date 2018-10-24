@@ -10,26 +10,29 @@
 #define EXP_SIZE 8
 #define EXP_MASK 255
 #define MASK (MAX_NUMBER - 1)
-#define MAX_NUMBER_FIT 2147483647  // 2^32 - sign
+#define MAX_NUMBER_FIT 1073741824  // 2^32 - sign
 
 
 
-inline print_pseudo_representation(f) {
+inline print_pseudo_representation(f){ 
   byte sign = f >> (MANTISSA_BITS + EXP_SIZE);
-  int e = f >> MANTISSA_BITS;
-  e = e & EXP_MASK;
-  e = e - EXP_BIAS;
+  int e_rep = f >> MANTISSA_BITS;
+  e_rep = e_rep & EXP_MASK;
+  e_rep = e_rep - EXP_BIAS;
   int ff = f & MASK;
-  printf("[%d %d %d] = ", sign, e, ff);
+  printf("[%d %d %d] = ", sign, e_rep, ff);
+  if ::(ff == 0) -> skip;
+   ::else ->
   do 
     ::((ff % 2) == 0) -> {
         ff = ff >> 1;
-        e++; 
+        e_rep++; 
     }
     ::else -> break;
   od
-  e = e - MANTISSA_BITS;
-  printf("%d*2^%d\n", ff, e);
+  fi
+  e_rep = e_rep - MANTISSA_BITS;
+  printf("%d*2^%d\n", ff, e_rep);
 }
 
 
@@ -40,7 +43,7 @@ inline mul_pseudo(result, a, b) {
   ea = ea & EXP_MASK;  // clear the sign
   eb = eb & EXP_MASK;
   byte e = ea + eb - EXP_BIAS;
-  int p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
+  int p = ((a & MASK) * (b & MASK));// >> MANTISSA_BITS;
   byte sign = (signA + signB) % 2;
   e = (sign << EXP_SIZE) + e;
   result = p | (e << MANTISSA_BITS);
@@ -51,6 +54,8 @@ inline mul_pseudo(result, a, b) {
 inline add_pseudo(result,  add_first,  add_second) {
   int exp_first_ = add_first >> MANTISSA_BITS,
            exp_second_ = add_second >> MANTISSA_BITS;
+
+  result = 0;
 
   //byte sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
   //byte sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
@@ -73,7 +78,7 @@ inline add_pseudo(result,  add_first,  add_second) {
     ::else -> skip;
     fi
     exp_first_ = (add_sign << EXP_SIZE) + exp_first_;
-    result = add_first | (exp_first << MANTISSA_BITS);
+    result = add_first | (exp_first_ << MANTISSA_BITS);
   } ::else -> 
         if ::(exp_second_ > exp_first_) -> {
             add_second = add_second & MASK;
@@ -98,13 +103,13 @@ inline add_pseudo(result,  add_first,  add_second) {
 }
 
 // TODO: check the accuracy again
- inline div_pseudo(result,  first, second) {
+ inline div_pseudo(divresult,  first, second) {
   int we_return = 0;
-  int reminder = 0;
+  int reminder = 1;
   int new_exponent;
-  int exponent_reminder;
+  int exponent_reminder = 150;
 
-  do :: true -> {
+  do :: ((reminder > 0) && (exponent_reminder >= 142)) -> {
     byte sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
     byte sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
     int exp_first = first >> MANTISSA_BITS,
@@ -194,24 +199,31 @@ inline add_pseudo(result,  add_first,  add_second) {
     } ::else -> skip;
     fi
 
-    byte sign = (sign_first + sign_second) % 2;
-    new_exponent = (sign << EXP_SIZE) + new_exponent;
+    byte sign_div = (sign_first + sign_second) % 2;
+    new_exponent = (sign_div << EXP_SIZE) + new_exponent;
     first = first | (new_exponent << MANTISSA_BITS);
 
-    add_pseudo(we_return, we_return, first);
+    int res_add;
+    add_pseudo(res_add, we_return, first);
+    we_return = res_add;
 
     first = rem_div_number1;
     second = rem_div_number2;
 
     // continue to divide, get the reminder and add it to the result
-  } :: !((reminder > 0) && (exponent_reminder >= 142)) -> break;
+  } ::else -> break;
   od
 
-  result = we_return;
+  divresult = we_return;
 }
 
 
 inline pseudo_from_int(result, xx, rate_of_minus10) {
+int first_n = 1086324736;
+int second_n = 1112539136;
+  
+  
+  
   int x = xx;  
   int pow_of_10 = 1;
   int i = 0;
@@ -220,7 +232,8 @@ inline pseudo_from_int(result, xx, rate_of_minus10) {
     ::else -> break;
   od
 
-  int first, second;
+
+
 
   int e = EXP_BIAS + MANTISSA_BITS;
   byte sign_ = 0;
@@ -230,8 +243,8 @@ inline pseudo_from_int(result, xx, rate_of_minus10) {
   }  :: else -> skip;
   fi
 
-
-  if ::(x == 0) -> first = 0;
+  
+  if ::(x == 0) -> first_n = 0;
   ::else -> {
   do    
   ::(x < MAX_NUMBER / 2) -> { 
@@ -248,8 +261,10 @@ inline pseudo_from_int(result, xx, rate_of_minus10) {
   fi
 
   e = (sign_ << EXP_SIZE) + e;
-  first = x | (e << MANTISSA_BITS);
+  first_n = x | (e << MANTISSA_BITS);
+  
   e = EXP_BIAS + MANTISSA_BITS;
+
   sign_ = 0;
   x = pow_of_10;
 
@@ -268,25 +283,43 @@ inline pseudo_from_int(result, xx, rate_of_minus10) {
   od
 
   e = (sign_ << EXP_SIZE) + e;
-  second = x | (e << (MANTISSA_BITS));
+  
+  second_n = x | (e << (MANTISSA_BITS));
+  
+ //div_pseudo(result, first_n, second_n);
 
-  div_pseudo(result, first, second);
+print_pseudo_representation(first_n);
+print_pseudo_representation(second_n);
+int res = 0;
+div_pseudo(res, first_n, second_n);
+
+result = res;
+//print_pseudo_representation(result);
+
 }
 
 
 active proctype main() {
 
-int one;
-int two;
-int three;
+int one = 1086324736;
+int two = 1112539136;
+int three = 1112539136;
 
-pseudo_from_int(one, 1, 1);
+//pseudo_from_int(one, 1, 1);
 //pseudo_from_int(two, 2, 1);
 
-//div_pseudo(three, one, two);
+//mul_pseudo(three, one, two);
+pseudo_from_int(one, 20, 0);
+
+pseudo_from_int(two, 3, 0);
 
 
-//print_pseudo_representation(three);
+div_pseudo(three, one, two);
+
+
+
+
+print_pseudo_representation(three);
 
  
 

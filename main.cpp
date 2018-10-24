@@ -369,7 +369,7 @@ int main(void) {
 
   printf("\n %d failed\n", fail);
 
-  pseudofloat fnew = pseudo_from_int(5, 3);
+  pseudofloat fnew = pseudo_from_int(20, 0);
   print_pseudo_representation(fnew);
   print_pseudo_representation(double2pseudo(-0.125));
 
