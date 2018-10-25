@@ -219,8 +219,14 @@ pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
   char signB = b >> (MANTISSA_BITS + EXP_SIZE);
   ea &= EXP_MASK;  // clear the sign
   eb &= EXP_MASK;
-  char e = ea + eb - EXP_BIAS;
-  pseudofloat p = ((a & MASK) * (b & MASK)) >> MANTISSA_BITS;
+  int e = ea + eb - EXP_BIAS;
+  a &= MASK;
+  b &= MASK;
+  //__int64_t pp = ((__int64_t)a * b);
+  // int p = pp >> 23;
+  int hp = (a >> 8) * (b >> 8);  // or we overflow it
+  int p = hp >> 7;
+
   char sign = (signA + signB) % 2;
   e = (sign << EXP_SIZE) + e;
   return p | ((pseudofloat)e << MANTISSA_BITS);
@@ -310,6 +316,19 @@ double pseudo2double(pseudofloat f) {
   return fl;
 }
 
+float SIN(float ramp) {
+  // not good
+  float sine;
+  float x, rect, k, i, j;
+  x = ramp - 0.5;
+  rect = x * (1 - x < 0 & 2);
+  k = (rect + 0.42493299) * (rect - 0.5) * (rect - 0.92493302);
+  i = 0.436501 + (rect * (rect + 1.05802));
+  j = 1.21551 + (rect * (rect - 2.0580201));
+  sine = i * j * k * 60.252201 * x;
+  return sine;
+}
+
 /*
  *
  *  Tests
@@ -322,7 +341,7 @@ int main(void) {
 
   printf("testing ...\n");
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 100; i++) {
     float a = 1.0 * (rand() % 100000) / (rand() % 1000);
     float b = 1.0 * (rand() % 10) / (rand() % 1000);
 
@@ -331,10 +350,13 @@ int main(void) {
     if (a == INFINITY) continue;
     if (b == INFINITY) continue;
 
-    float c = a / b;
-    // float c = a + b;
+    // float c = a / b;
+    float c = a * b;
+    // float c = a * b;
 
-    pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
+    // pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat cc = (mul_pseudo(double2pseudo(a), double2pseudo(b)));
+
     // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
 
     float c1 = pseudo2double(cc);
@@ -373,82 +395,9 @@ int main(void) {
   print_pseudo_representation(fnew);
   print_pseudo_representation(double2pseudo(-0.125));
 
+  // for (float x = -3.14; x <= 3.14; x += 0.01) {
+  //  printf("x = %f  sin(x) = %f    we_sin(x) = %f\n", x, sin(x), SIN(x));
+  // }
+
   return 0;
 }
-
-/*
-
-#define DIGITS 256
-#define EPS \
-  20  // константа устанавливающая границы приближенности вычисления корня
-
-#include <stdio.h>
-#include <stdlib.h>
-
-using namespace std;
-typedef signed int __int32_t;
-
-class Fixed {
-  signed int x;
-
-  Fixed(signed int a) { x = a; }
-
- public:
-  Fixed() { x = 0; }
-  static Fixed fromInt(signed int val) { return Fixed(val * DIGITS); }
-  static Fixed fromFloat(float val) {
-    return Fixed((signed int)(val * DIGITS));
-  }
-  float fixed2float() { return ((float)x) / DIGITS; }
-  Fixed sum(Fixed a, Fixed b) { return Fixed(a.x + b.x); }
-  Fixed diff(Fixed a, Fixed b) { return Fixed(a.x - b.x); }
-  static Fixed mul(Fixed a, Fixed b) {
-    signed int c = a.x * b.x;
-    if (c / b.x != a.x) {
-      // Overflow!
-      signed int i1 = a.x / DIGITS;
-      signed int i2 = b.x / DIGITS;
-      signed int f1 = (a.x & (DIGITS - 1));
-      signed int f2 = (b.x & (DIGITS - 1));
-      return Fixed((i1 * i2) * DIGITS + (f1 * f2) / DIGITS + i1 * f2 + i2 *
-f1); } else { return Fixed(c / DIGITS);
-    }
-  }
-  static Fixed div(Fixed a, Fixed b) {
-    if (a.x > (1 << 21)) {
-      // Overflow!
-      signed int i = a.x / DIGITS;
-      signed int f = (a.x & (DIGITS - 1));
-      return Fixed(((i * DIGITS) / b.x) * DIGITS + (f * DIGITS) / b.x);
-    } else {
-      return Fixed((a.x * DIGITS) / b.x);
-    }
-  }
-  Fixed sqrt(Fixed k) {
-    Fixed tmp(0);
-    tmp.x = k.x / 2;
-    signed int min = 0;
-    signed int max = k.x;
-    Fixed quick(0);
-    do {
-      tmp.x = (min + max) / 2;
-      quick = Fixed::mul(tmp, tmp);
-      if (abs(quick.x - k.x) < EPS) return Fixed(tmp);
-      if (quick.x > k.x) {
-        max = tmp.x;
-      } else {
-        min = tmp.x;
-      }
-    } while (true);
-  }
-};
-
-int main() {
-  Fixed me = Fixed::fromFloat(633.33);
-  Fixed me2 = Fixed::fromFloat(3.2);
-
-  printf("%f\n", Fixed::div(me, me2).fixed2float());
-}
-
-
-*/
