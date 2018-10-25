@@ -20,8 +20,39 @@ pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
   exp_first &= EXP_MASK;  // clear the sign
   exp_second &= EXP_MASK;
 
-  // TODO: implement sub
-  return first;
+  first &= MASK;
+  second &= MASK;
+
+  int res = 0;
+  char sign = 0;
+  int exp;
+
+  if (exp_first > exp_second) {
+    exp = exp_first;
+    res = first - (second >> (exp_first - exp_second));
+    if (res < 0) {
+      res = -res;
+      sign = 1;
+    }
+  } else {
+    exp = exp_second;
+    res = (first >> (exp_second - exp_first)) - second;
+    if (res < 0) {
+      res = -res;
+      sign = 1;
+    }
+  }
+
+  if (res == 0) return 0;
+
+  while (res <= MAX_NUMBER / 2) {
+    res <<= 1;
+    exp--;
+  }
+
+  exp = (sign << EXP_SIZE) + exp;
+
+  return res | ((pseudofloat)exp << MANTISSA_BITS);
 }
 
 // TODO: only works for both positives
@@ -316,17 +347,9 @@ double pseudo2double(pseudofloat f) {
   return fl;
 }
 
-float SIN(float ramp) {
+float SIN(float x) {
   // not good
-  float sine;
-  float x, rect, k, i, j;
-  x = ramp - 0.5;
-  rect = x * (1 - x < 0 & 2);
-  k = (rect + 0.42493299) * (rect - 0.5) * (rect - 0.92493302);
-  i = 0.436501 + (rect * (rect + 1.05802));
-  j = 1.21551 + (rect * (rect - 2.0580201));
-  sine = i * j * k * 60.252201 * x;
-  return sine;
+  return x;
 }
 
 /*
@@ -341,9 +364,9 @@ int main(void) {
 
   printf("testing ...\n");
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 1000; i++) {
     float a = 1.0 * (rand() % 100000) / (rand() % 1000);
-    float b = 1.0 * (rand() % 10) / (rand() % 1000);
+    float b = 1.0 * (rand() % 100000) / (rand() % 1000);
 
     // if (i < 157) continue;
 
@@ -351,11 +374,11 @@ int main(void) {
     if (b == INFINITY) continue;
 
     // float c = a / b;
-    float c = a * b;
+    float c = b - a;
     // float c = a * b;
 
     // pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
-    pseudofloat cc = (mul_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat cc = (sub_pseudo(double2pseudo(b), double2pseudo(a)));
 
     // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
 
