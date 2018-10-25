@@ -10,8 +10,11 @@
 #define EXP_SIZE 8
 #define EXP_MASK 255
 #define MASK (MAX_NUMBER - 1)
-#define MAX_NUMBER_FIT 1073741824  // 2^32 - sign
+#define MAX_NUMBER_FIT 1073741824  // 2^32 - sign bit, /2 for promela, IDK
 
+int three = 1112539136;
+
+ltl safe {[] three < 0}
 
 
 inline print_pseudo_representation(f){ 
@@ -101,6 +104,57 @@ inline add_pseudo(result,  add_first,  add_second) {
         fi
     fi    
 }
+
+
+inline sub_pseudo(result_sub, first_sub, second_sub) {
+  int exp_first_sub = first_sub >> MANTISSA_BITS,
+           exp_second_sub = second_sub >> MANTISSA_BITS;
+
+  exp_first_sub = exp_first_sub & EXP_MASK;  // clear the sign
+  exp_second_sub = exp_second_sub & EXP_MASK;
+
+  first_sub = first_sub & MASK;
+  second_sub = second_sub & MASK;
+
+  int res_sub = 0;
+  byte sign_sub = 0;
+  int exp_sub;
+
+  if ::(exp_first_sub > exp_second_sub) -> {
+    exp_sub = exp_first_sub;
+    res_sub = first_sub - (second_sub >> (exp_first_sub - exp_second_sub));
+    if ::(res_sub < 0) -> {
+      res_sub = -res_sub;
+      sign_sub = 1;
+    } :: else -> skip;
+    fi
+    } ::else -> {
+    exp_sub = exp_second_sub;
+    res_sub = (first_sub >> (exp_second_sub - exp_first_sub)) - second_sub;
+    if ::(res_sub < 0) -> {
+      res_sub = -res_sub;
+      sign_sub = 1;
+    } ::else -> skip;
+    fi
+  }
+  fi
+
+  if ::(res_sub != 0) -> {
+
+  do ::(res_sub <= MAX_NUMBER / 2) -> {
+    res_sub = res_sub  << 1;
+    exp_sub == exp_sub - 1;
+  } ::else -> break;
+  od
+
+  exp_sub = (sign_sub << EXP_SIZE) + exp_sub;
+  res_sub = res_sub | (exp_sub << MANTISSA_BITS);  
+  } ::else -> skip;
+   fi
+
+   result_sub = res_sub;
+}
+
 
 // TODO: check the accuracy again
  inline div_pseudo(divresult,  first, second) {
@@ -280,28 +334,30 @@ int second_n = 1112539136;
   
   second_n = x | (e << (MANTISSA_BITS));
   
- //div_pseudo(result, first_n, second_n);
-
 //print_pseudo_representation(first_n);
 //print_pseudo_representation(second_n);
 int res = 0;
 div_pseudo(res, first_n, second_n);
-
 result = res;
-//print_pseudo_representation(result);
-
 }
 
 
+
+
+
+
+
+
+ 
 active proctype main() {
 
 int one = 1086324736;
 int two = 1112539136;
-int three = 1112539136;
+
 pseudo_from_int(one, 20, 0);
-pseudo_from_int(two, 3, 0);
+pseudo_from_int(two, 35, 1);
 //div_pseudo(three, one, two);
-mul_pseudo(three, one, two);
+sub_pseudo(three, one, two);
 
 
 print_pseudo_representation(three);
