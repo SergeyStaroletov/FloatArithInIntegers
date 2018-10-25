@@ -1,4 +1,10 @@
-#include <limits.h>
+/*
+@brief Floating point calculations implementation in plain C for integer
+processors
+@author Sergey Staroletov serg_soft@mail.ru
+@license GNU GPL
+*/
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +19,7 @@ typedef unsigned int pseudofloat;
 #define MASK (MAX_NUMBER - 1)
 #define MAX_NUMBER_FIT (0xffffffff / 2)  // 2^32 - sign
 
-pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
+pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
   unsigned exp_first = first >> MANTISSA_BITS,
            exp_second = second >> MANTISSA_BITS;
 
@@ -24,7 +30,6 @@ pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
   second &= MASK;
 
   int res = 0;
-  char sign = 0;
   int exp;
 
   if (exp_first > exp_second) {
@@ -32,19 +37,18 @@ pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
     res = first - (second >> (exp_first - exp_second));
     if (res < 0) {
       res = -res;
-      sign = 1;
+      sign = !sign;
     }
   } else {
     exp = exp_second;
     res = (first >> (exp_second - exp_first)) - second;
     if (res < 0) {
       res = -res;
-      sign = 1;
+      sign = !sign;
     }
   }
 
   if (res == 0) return 0;
-
   while (res <= MAX_NUMBER / 2) {
     res <<= 1;
     exp--;
@@ -55,19 +59,9 @@ pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
   return res | ((pseudofloat)exp << MANTISSA_BITS);
 }
 
-// TODO: only works for both positives
-pseudofloat add_pseudo(pseudofloat first, pseudofloat second) {
+pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
   unsigned exp_first = first >> MANTISSA_BITS,
            exp_second = second >> MANTISSA_BITS;
-
-  char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
-  char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
-
-  // TODO: check the signs
-  (void)sign_first;
-  (void)sign_second;
-
-  char sign = 0;
 
   exp_first &= EXP_MASK;
   exp_second &= EXP_MASK;
@@ -99,6 +93,49 @@ pseudofloat add_pseudo(pseudofloat first, pseudofloat second) {
     return (((first & MASK) + (second & MASK)) >> 1) |
            (exp_first << MANTISSA_BITS);
   }
+}
+
+pseudofloat add_pseudo(pseudofloat first, pseudofloat second) {
+  char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
+  char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
+
+  if (sign_first == 0 && sign_second == 0)  // A+B
+    return add_two_pseudo(first, second, 0);
+
+  if (sign_first == 1 && sign_second == 1) {  //-A-B=>-(A+B)
+    return add_two_pseudo(first, second, 1);
+  }
+
+  if (sign_first == 0 && sign_second == 1) {  // A-B
+    return sub_two_pseudo(first, second, 0);
+  }
+
+  if (sign_first == 1 && sign_second == 0) {  // -A+B
+    return sub_two_pseudo(second, first, 0);
+  }
+
+  return 0;
+}
+
+pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
+  char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
+  char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
+
+  if (sign_first == 0 && sign_second == 0)  // A-B
+    return sub_two_pseudo(first, second, 0);
+
+  if (sign_first == 1 && sign_second == 1) {  //-A--B=>-A+B=>B-A
+    return sub_two_pseudo(second, first, 0);
+  }
+
+  if (sign_first == 0 && sign_second == 1) {  // A--B=>A+B
+    return add_two_pseudo(first, second, 0);
+  }
+
+  if (sign_first == 1 && sign_second == 0) {  // -A-B=> -(A+B)
+    return add_two_pseudo(first, second, 1);
+  }
+  return 0;
 }
 
 void print_pseudo_representation(pseudofloat f) {
@@ -263,8 +300,6 @@ pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
   return p | ((pseudofloat)e << MANTISSA_BITS);
 }
 
-pseudofloat double2pseudo(double x);  // forward
-
 /* @param x - number
  * @param rate_of_minus_10 - power of 10  to divide the number
  * @return x * pow(10, -rate_of_minus10)
@@ -278,7 +313,7 @@ pseudofloat pseudo_from_int(int x, int rate_of_minus10) {
   char sign = 0;
   if (x < 0) {
     sign = 1;
-    x = x * (-1);
+    x = -x;
   }
   if (x == 0) first = 0;
   while (x < MAX_NUMBER / 2) x *= 2, --e;
@@ -350,77 +385,4 @@ double pseudo2double(pseudofloat f) {
 float SIN(float x) {
   // not good
   return x;
-}
-
-/*
- *
- *  Tests
- *
- */
-int main(void) {
-  printf("test - = %f\n", pseudo2double(double2pseudo(-123)));
-
-  int fail = 0;
-
-  printf("testing ...\n");
-
-  for (int i = 0; i < 1000; i++) {
-    float a = 1.0 * (rand() % 100000) / (rand() % 1000);
-    float b = 1.0 * (rand() % 100000) / (rand() % 1000);
-
-    // if (i < 157) continue;
-
-    if (a == INFINITY) continue;
-    if (b == INFINITY) continue;
-
-    // float c = a / b;
-    float c = b - a;
-    // float c = a * b;
-
-    // pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
-    pseudofloat cc = (sub_pseudo(double2pseudo(b), double2pseudo(a)));
-
-    // myfloat cc = (mfadd(double2mf(a), double2mf(b)));
-
-    float c1 = pseudo2double(cc);
-
-    print_pseudo_as_float("a=", double2pseudo(a));
-    print_pseudo_as_float("b=", double2pseudo(b));
-
-    print_pseudo_as_float("our result", cc);
-    double diff = fabs(c - c1);
-    print_pseudo_as_float("diff=", double2pseudo(diff));
-
-    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
-
-    print_pseudo_as_float("etalon", double2pseudo(c));
-
-    if (diff < 0.126 || isnan(diff))
-      printf("passed!\n");
-    else {
-      printf("FAILED!\n");
-      // printfloat("-",cc);
-      // mfshow(cc);
-      fail++;
-    }
-  }
-
-  // printf("500 + 3 = %e\n", mf2double(mfadd(double2mf(500),double2mf(0))));
-  // printf("1e18 * 1e-18 = %e\n",
-  // mf2double(mfmul(double2mf(1e18),double2mf(1e-18)))); printf("1e-18 +
-  // 2e-18 = %e\n", mf2double(mfadd(double2mf(1e-18),double2mf(2e-18))));
-  // printf("1e-16 + 1e-18 = %e\n",
-  // mf2double(mfadd(double2mf(1e-16),double2mf(1e-18))));
-
-  printf("\n %d failed\n", fail);
-
-  pseudofloat fnew = pseudo_from_int(20, 0);
-  print_pseudo_representation(fnew);
-  print_pseudo_representation(double2pseudo(-0.125));
-
-  // for (float x = -3.14; x <= 3.14; x += 0.01) {
-  //  printf("x = %f  sin(x) = %f    we_sin(x) = %f\n", x, sin(x), SIN(x));
-  // }
-
-  return 0;
 }
