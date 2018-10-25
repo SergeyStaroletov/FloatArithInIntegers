@@ -43,7 +43,7 @@ inline mul_pseudo(result, a, b) {
   ea = ea & EXP_MASK;  // clear the sign
   eb = eb & EXP_MASK;
   byte e = ea + eb - EXP_BIAS;
-  int p = ((a & MASK) * (b & MASK));// >> MANTISSA_BITS;
+  int p = (((a & MASK) >> 8) * ((b & MASK)>>8)) >> 7; //8+8+7 = MANTISSA_BITS
   byte sign = (signA + signB) % 2;
   e = (sign << EXP_SIZE) + e;
   result = p | (e << MANTISSA_BITS);
@@ -222,8 +222,6 @@ inline pseudo_from_int(result, xx, rate_of_minus10) {
 int first_n = 1086324736;
 int second_n = 1112539136;
   
-  
-  
   int x = xx;  
   int pow_of_10 = 1;
   int i = 0;
@@ -231,9 +229,6 @@ int second_n = 1112539136;
     ::(i < rate_of_minus10) -> {pow_of_10 = pow_of_10 * 10; i = i + 1;}
     ::else -> break;
   od
-
-
-
 
   int e = EXP_BIAS + MANTISSA_BITS;
   byte sign_ = 0;
@@ -243,7 +238,6 @@ int second_n = 1112539136;
   }  :: else -> skip;
   fi
 
-  
   if ::(x == 0) -> first_n = 0;
   ::else -> {
   do    
@@ -288,8 +282,8 @@ int second_n = 1112539136;
   
  //div_pseudo(result, first_n, second_n);
 
-print_pseudo_representation(first_n);
-print_pseudo_representation(second_n);
+//print_pseudo_representation(first_n);
+//print_pseudo_representation(second_n);
 int res = 0;
 div_pseudo(res, first_n, second_n);
 
@@ -304,24 +298,12 @@ active proctype main() {
 int one = 1086324736;
 int two = 1112539136;
 int three = 1112539136;
-
-//pseudo_from_int(one, 1, 1);
-//pseudo_from_int(two, 2, 1);
-
-//mul_pseudo(three, one, two);
 pseudo_from_int(one, 20, 0);
-
 pseudo_from_int(two, 3, 0);
-
-
-div_pseudo(three, one, two);
-
-
+//div_pseudo(three, one, two);
+mul_pseudo(three, one, two);
 
 
 print_pseudo_representation(three);
-
- 
-
 
 }
