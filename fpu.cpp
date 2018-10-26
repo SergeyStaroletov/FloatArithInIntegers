@@ -382,7 +382,26 @@ double pseudo2double(pseudofloat f) {
   return fl;
 }
 
-float SIN(float x) {
-  // not good
-  return x;
+pseudofloat Sin(pseudofloat x) {
+  int i = 1;
+  pseudofloat cur = x;
+  pseudofloat acc = pseudo_from_int(1, 0);
+  pseudofloat fact = acc;
+  pseudofloat pow = x;
+  pseudofloat p00000001 = pseudo_from_int(1, 8);
+  pseudofloat xx = mul_pseudo(x, x);
+  xx = sub_pseudo(0, xx);
+
+  while ((acc - p00000001) > 0 && i < 100) {
+    pseudofloat f = ((2 * i) * (2 * i + 1));
+    pseudofloat ff = pseudo_from_int(f, 0);
+    fact = mul_pseudo(fact, ff);
+    // fact *= ((2*i)*(2*i+1));
+    // pow *= -1 * x*x;
+    pow = mul_pseudo(xx, pow);
+    acc = div_pseudo(pow, fact);
+    cur = add_pseudo(cur, acc);
+    i++;
+  }
+  return cur;
 }

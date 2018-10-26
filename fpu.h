@@ -32,4 +32,6 @@ pseudofloat double2pseudo(double x);
 
 double pseudo2double(pseudofloat f);
 
+pseudofloat Sin(pseudofloat x);
+
 #endif  // FPU_H
