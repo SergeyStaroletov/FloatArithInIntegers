@@ -10,6 +10,8 @@ processors
 
 typedef unsigned int pseudofloat;
 
+void fixOverflow(pseudofloat *mantissa, int *exp);
+
 pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign);
 
 pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign);
@@ -20,7 +22,7 @@ pseudofloat sub_pseudo(pseudofloat first, pseudofloat second);
 
 void print_pseudo_representation(pseudofloat f);
 
-void print_pseudo_as_float(const char* str, pseudofloat f);
+void print_pseudo_as_float(const char *str, pseudofloat f);
 
 pseudofloat div_pseudo(pseudofloat first, pseudofloat second);
 
