@@ -178,8 +178,8 @@ void print_pseudo_as_float(const char* str, pseudofloat f) {
     }
   }
   fl /= MAX_NUMBER;  // 2^23
-  printf("%e", fl);
-  printf("\n");
+  if (sign) printf("-");
+  printf("%e\n", fl);
 }
 
 // TODO: check the accuracy again
@@ -188,10 +188,19 @@ pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
   int reminder = 0;
   int new_exponent;
   int exponent_reminder;
+  char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
+  char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
+
+  if (first == 0 && second == 0)
+    return -1;  // nan = (0xfffff...)
+  else if (second == 0) {
+    if (first > 0)
+      return (0x80 << MANTISSA_BITS);  //+inf
+    else
+      return (0xff << MANTISSA_BITS);  //-inf
+  }
 
   do {
-    char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
-    char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
     unsigned exp_first = first >> MANTISSA_BITS,
              exp_second = second >> MANTISSA_BITS;
     first &= MASK;
@@ -200,20 +209,12 @@ pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
     exp_second &= EXP_MASK;
     new_exponent = MANTISSA_BITS + ((exp_first - exp_second) + EXP_BIAS);
     int ee = 0;
-    while (first < MAX_NUMBER_FIT) {
-      first <<= 1;
-      ++ee;
-    }
+    if (first > 0)
+      while (first < MAX_NUMBER_FIT) {
+        first <<= 1;
+        ++ee;
+      }
     new_exponent -= ee;
-
-    if (first == 0 && second == 0)
-      return -1;  // nan = (0xfffff...)
-    else if (second == 0) {
-      if (first > 0)
-        return (0x80 << MANTISSA_BITS);  //+inf
-      else
-        return (0xff << MANTISSA_BITS);  //-inf
-    }
 
     while ((second % 2) == 0) {
       second >>= 1;
@@ -256,10 +257,11 @@ pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
 
     first = div_result;
 
-    while (first <= MAX_NUMBER / 2) {
-      first <<= 1;
-      new_exponent--;
-    }
+    if (first > 0)
+      while (first <= MAX_NUMBER / 2) {
+        first <<= 1;
+        new_exponent--;
+      }
 
     if (first == MAX_NUMBER) {
       first >>= 1;
@@ -383,6 +385,7 @@ double pseudo2double(pseudofloat f) {
 }
 
 pseudofloat Sin(pseudofloat x) {
+  // print_pseudo_as_float("current x", x);
   int i = 1;
   pseudofloat cur = x;
   pseudofloat acc = pseudo_from_int(1, 0);
@@ -392,15 +395,31 @@ pseudofloat Sin(pseudofloat x) {
   pseudofloat xx = mul_pseudo(x, x);
   xx = sub_pseudo(0, xx);
 
-  while ((acc - p00000001) > 0 && i < 100) {
-    pseudofloat f = ((2 * i) * (2 * i + 1));
+  // while ((acc - p00000001) > 0 && i < 10) {
+  while (i < 5) {
+    int f = ((2 * i) * (2 * i + 1));
     pseudofloat ff = pseudo_from_int(f, 0);
+    print_pseudo_as_float("f = ", ff);
+
     fact = mul_pseudo(fact, ff);
+    print_pseudo_as_float("fact = ", fact);
+
     // fact *= ((2*i)*(2*i+1));
     // pow *= -1 * x*x;
     pow = mul_pseudo(xx, pow);
+    print_pseudo_as_float("pow = ", pow);
+
     acc = div_pseudo(pow, fact);
+    print_pseudo_as_float("acc = ", acc);
+
+    if (i == 9) {
+      i = 9;
+    }
     cur = add_pseudo(cur, acc);
+
+    printf("%d", i);
+    print_pseudo_as_float(" current sin = ", cur);
+
     i++;
   }
   return cur;

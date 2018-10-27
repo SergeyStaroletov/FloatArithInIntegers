@@ -83,16 +83,19 @@ void TestFPU::testDiv() {
 }
 
 void TestFPU::testAdd() {
-  QSKIP("after");
+  // QSKIP("after");
 
   printf("testing add...\n");
 
   int fail = 0;
-  for (int i = 0; i < 100; i++) {
-    float a = 1.0 * (rand() % 100000) / (rand() % 1000);
-    float b = 1.0 * (rand() % 10000) / (rand() % 1000);
+  for (int i = 0; i < 10000; i++) {
+    float a = 1.0 * (rand() % 100000) / (rand() % 100);
+    float b = 1.0 * (rand() % 10) / (rand() % 100000);
     if (rand() % 2 == 0) a = -a;
     if (rand() % 2 == 0) b = -b;
+
+    if (a == 0 && b == 0) continue;      //!!
+    if (isinf(a) || isinf(b)) continue;  //!!
 
     float c = a + b;
 
@@ -108,7 +111,7 @@ void TestFPU::testAdd() {
     print_pseudo_as_float("diff=", double2pseudo(diff));
     printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
     print_pseudo_as_float("etalon", double2pseudo(c));
-    if (diff < 0.126 || isnan(diff))
+    if (diff < 0.01 || isnan(diff))
       printf("passed!\n");
     else {
       printf("FAILED!\n");
@@ -128,12 +131,14 @@ void TestFPU::testSub() {
   printf("testing sub...\n");
 
   int fail = 0;
-  for (int i = 0; i < 100; i++) {
-    float a = 1.0 * (rand() % 100000) / (rand() % 1000);
-    float b = 1.0 * (rand() % 10000) / (rand() % 1000);
+  for (int i = 0; i < 1000; i++) {
+    float a = 1.0 * (rand() % 10000) / (rand() % 1000);
+    float b = 1.0 * (rand() % 100000) / (rand() % 10);
     if (rand() % 2 == 0) a = -a;
     if (rand() % 2 == 0) b = -b;
 
+    if (a == 0 && b == 0) continue;      //!!
+    if (isinf(a) || isinf(b)) continue;  //!!
     float c = a - b;
 
     pseudofloat cc = (sub_pseudo(double2pseudo(a), double2pseudo(b)));
@@ -163,7 +168,9 @@ void TestFPU::testSub() {
 }
 
 void TestFPU::testSin() {
-  for (float x = -3.14; x <= 3.14; x += 0.01) {
+  // QSKIP("after");
+
+  for (float x = -2.46; x <= 3.14; x += 0.01) {
     float actual = pseudo2double(Sin(double2pseudo(x)));
     float etalon = sin(x);
 
