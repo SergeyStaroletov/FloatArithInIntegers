@@ -85,7 +85,7 @@ void TestFPU::testDiv() {
 }
 
 void TestFPU::testAdd() {
-  // QSKIP("after");
+  QSKIP("after");
 
   printf("testing add...\n");
 
@@ -101,9 +101,6 @@ void TestFPU::testAdd() {
 
     float c = a + b;
 
-    if (a == -97408) {
-      a = a;
-    }
     pseudofloat cc = (add_pseudo(double2pseudo(a), double2pseudo(b)));
 
     float c1 = pseudo2double(cc);
@@ -173,10 +170,10 @@ void TestFPU::testSub() {
 }
 
 void TestFPU::testSin() {
-  QSKIP("after");
+  // QSKIP("after");
 
   // for (float x = -2.46; x <= 3.14; x += 0.01) {
-  for (float x = -2.4615; x <= 3.1415; x += 0.01) {
+  for (float x = -3.1415; x <= 3.1415; x += 0.01) {
     printf("TEST x = %f\n", x);
 
     float actual = pseudo2double(Sin(double2pseudo(x)));
