@@ -52,6 +52,15 @@ pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
   exp_first &= EXP_MASK;  // clear the sign
   exp_second &= EXP_MASK;
 
+  if (exp_first - exp_second >= 32) {
+    // first number too mush bigger than next one
+    return first | (sign >> (MANTISSA_BITS + EXP_SIZE));
+  }
+  if (exp_second - exp_first >= 32) {
+    // first number too mush bigger than next one
+    return second | (sign >> (MANTISSA_BITS + EXP_SIZE));
+  }
+
   first &= MASK;
   second &= MASK;
 
@@ -93,6 +102,15 @@ pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
 
   exp_first &= EXP_MASK;
   exp_second &= EXP_MASK;
+
+  if (exp_first - exp_second >= 32) {
+    // first number too mush bigger than next one
+    return first | (sign >> (MANTISSA_BITS + EXP_SIZE));
+  }
+  if (exp_second - exp_first >= 32) {
+    // first number too mush bigger than next one
+    return second | (sign >> (MANTISSA_BITS + EXP_SIZE));
+  }
 
   if (exp_first > exp_second) {
     first &= MASK;

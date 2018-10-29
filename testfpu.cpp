@@ -101,6 +101,9 @@ void TestFPU::testAdd() {
 
     float c = a + b;
 
+    if (a == -97408) {
+      a = a;
+    }
     pseudofloat cc = (add_pseudo(double2pseudo(a), double2pseudo(b)));
 
     float c1 = pseudo2double(cc);
