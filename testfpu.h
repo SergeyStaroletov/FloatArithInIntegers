@@ -11,5 +11,6 @@ class TestFPU : public QObject {
   void testSub();
   void testAdd();
   void testSin();
+  void testCos();
 };
 #endif  // TESTFPU_H

@@ -170,14 +170,30 @@ void TestFPU::testSub() {
 }
 
 void TestFPU::testSin() {
-  // QSKIP("after");
+  QSKIP("after");
 
-  // for (float x = -2.46; x <= 3.14; x += 0.01) {
   for (float x = -3.1415; x <= 3.1415; x += 0.01) {
     printf("TEST x = %f\n", x);
 
-    float actual = pseudo2double(Sin(double2pseudo(x)));
+    float actual = pseudo2double(sinus(double2pseudo(x)));
     float etalon = sin(x);
+
+    float diff = fabs(actual - etalon);
+
+    printf("x = %f  sin(x) = %f    we_sin(x) = %f\n", x, etalon, actual);
+
+    QVERIFY(diff < 0.01);
+  }
+}
+
+void TestFPU::testCos() {
+  // QSKIP("after");
+
+  for (float x = -3.1415; x <= 3.1415; x += 0.01) {
+    printf("TEST x = %f\n", x);
+
+    float actual = pseudo2double(cosinus(double2pseudo(x)));
+    float etalon = cos(x);
 
     float diff = fabs(actual - etalon);
 

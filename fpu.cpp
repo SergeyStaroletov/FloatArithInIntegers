@@ -483,7 +483,7 @@ pseudofloat abs_pseudo(pseudofloat x) {
   return ff | ((pseudofloat)e << (MANTISSA_BITS));
 }
 
-pseudofloat Sin(pseudofloat x) {
+pseudofloat sinus(pseudofloat x) {
   print_pseudo_as_float("current x", x);
   int i = 1;
   pseudofloat current_sin = x;
@@ -508,10 +508,6 @@ pseudofloat Sin(pseudofloat x) {
     pow = mul_pseudo(xx, pow);
     print_pseudo_as_float("pow part = ", pow);
 
-    if (i == 9) {
-      i = 9;
-    }
-
     seq_n = div_pseudo(pow, fact);
     printf("%d", i);
     print_pseudo_as_float(" -> seq[i]  = ", seq_n);
@@ -527,35 +523,10 @@ pseudofloat Sin(pseudofloat x) {
   print_pseudo_as_float(":: resturn sin = ", current_sin);
 
   return current_sin;
+}
 
-  /*
-  while (((seq_n - p00000001) > 0 || (p00000001 - seq_n > 0)) && i < 10) {
-    // while (i < 5) {
-    int f = ((2 * i) * (2 * i + 1));
-    pseudofloat ff = pseudo_from_int(f, 0);
-    print_pseudo_as_float("f = ", ff);
-
-    fact = mul_pseudo(fact, ff);
-    print_pseudo_as_float("fact = ", fact);
-
-    // fact *= ((2*i)*(2*i+1));
-    // pow *= -1 * x*x;
-    pow = mul_pseudo(xx, pow);
-    print_pseudo_as_float("pow = ", pow);
-
-    seq_n = div_pseudo(pow, fact);
-    print_pseudo_as_float("acc = ", seq_n);
-
-    if (i == 9) {
-      i = 9;
-    }
-    current_sin = add_pseudo(current_sin, seq_n);
-
-    printf("%d", i);
-    print_pseudo_as_float(" current sin = ", current_sin);
-
-    i++;
-  }
-  return current_sin;
-  */
+pseudofloat cosinus(pseudofloat x) {
+  pseudofloat demie_pi = pseudo_from_int(3141592 / 2, 6);
+  pseudofloat x1 = sub_pseudo(demie_pi, x);
+  return sinus(x1);
 }
