@@ -101,6 +101,67 @@ inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_tw
     fi
   fi
 }
+//-----------------------------------------------------------------
+
+inline add_two_pseudo(result_add_two, first_add_two,  second_add_two, sign_add_two) {
+  int exp_first_add_two = first_add_two >> MANTISSA_BITS, exp_second_add_two = second_add_two >> MANTISSA_BITS;
+
+  exp_first_add_two = exp_first_add_two & EXP_MASK;
+  exp_second_add_two = exp_second_add_two & EXP_MASK;
+
+  if ::(exp_first_add_two - exp_second_add_two >= 32) -> {
+    // first number too mush bigger than next one
+    result_add_two = first_add_two | (sign_add_two >> (MANTISSA_BITS + EXP_SIZE));
+  } ::else -> 
+  if ::(exp_second_add_two - exp_first_add_two >= 32) -> {
+    // second number too mush bigger than next one
+    result_add_two =  second_add_two | (sign_add_two >> (MANTISSA_BITS + EXP_SIZE));
+  } ::else -> {
+
+    if ::(exp_first_add_two > exp_second_add_two) -> {
+      first_add_two = first_add_two & MASK;
+      second_add_two = (second_add_two & MASK) >> (exp_first_add_two - exp_second_add_two);
+      first_add_two = first_add_two + second_add_two;
+      if ::(first_add_two > MASK) -> {
+        first_add_two = first_add_two >> 1;
+        exp_first_add_two = exp_first_add_two + 1;
+      } ::else -> skip;
+      fi
+      //fixOverflow(first, exp_first);
+      exp_first_add_two = (sign_add_two << EXP_SIZE) + exp_first_add_two;
+      result_add_two = first_add_two | (exp_first_add_two << MANTISSA_BITS);
+
+    } :: else -> if ::(exp_second_add_two > exp_first_add_two) -> {
+        second_add_two = second_add_two & MASK;
+        first_add_two = (first_add_two & MASK) >> (exp_second_add_two - exp_first_add_two);
+
+        second_add_two = second_add_two + first_add_two;
+
+        if ::(second_add_two > MASK) -> {
+          second_add_two = second_add_two >> 1;
+          exp_second_add_two = exp_second_add_two + 1;
+        } :: else -> skip;
+        fi
+        //fixOverflow(second, exp_second);
+
+        exp_second_add_two = (sign_add_two << EXP_SIZE) + exp_second_add_two;
+        result_add_two = second_add_two | (exp_second_add_two << MANTISSA_BITS);
+      } :: else -> {
+        exp_first_add_two = exp_first_add_two + 1;
+        result_add_two = (((first_add_two & MASK) + (second_add_two & MASK)) >> 1);
+        //fixOverflow(&res, &exp_first);
+        exp_first_add_two = (sign_add_two << EXP_SIZE) + exp_first_add_two;
+        result_add_two = result_add_two | (exp_first_add_two << MANTISSA_BITS);
+      }
+      fi
+    fi  
+  }
+  fi 
+fi 
+}
+
+
+
 
 //-----------------------------------------------------------------
 inline pseudo_from_int(result, xx, rate_of_minus10) {
@@ -187,6 +248,7 @@ pseudo_from_int(two, 35, 1);
 bit signsign = 0;
 
 sub_two_pseudo(three, one, two, signsign);
+add_two_pseudo(three, one, two, signsign);
 
 
 print_pseudo_representation(three);
