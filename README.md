@@ -8,6 +8,9 @@ Floating point operations implemented in software way using only integers (32 bi
 - cos
 - sin
 
+Negatives are supported.
+NAN and +=Inf are not implemented now. 
+
 Tests provided.
 May be useful for implementing fpu computaions for integer only processors. 
 
