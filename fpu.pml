@@ -210,6 +210,146 @@ inline sub_pseudo(result_sub, first_sub, second_sub) {
 }
 
 //-----------------------------------------------------------------
+inline div_pseudo(result_div, first_div_pass, second_div) {
+  int we_return = 0;
+  int reminder = 1;
+  int new_exponent;
+  int exponent_reminder = 150;
+  int first_div = first_div_pass;
+  int second_div = second_div_pass;
+  byte sign_first_div = first_div >> (MANTISSA_BITS + EXP_SIZE);
+  byte sign_second_div = second_div >> (MANTISSA_BITS + EXP_SIZE);
+
+  if ::(first_div == 0 && second_div == 0) -> 
+    result_div = -1;  // nan = (0xfffff...)
+  ::else -> if ::(second == 0) -> {
+    if ::(first_div > 0) -> 
+      result_div = (0x80 << MANTISSA_BITS);  //+inf
+       ::else ->
+      result_div = (0xff << MANTISSA_BITS);  //-inf
+    fi
+  } ::else -> {
+    //normal div
+  do ::((reminder > 0) && (exponent_reminder >= 142)) -> {//?
+    int exp_first = first_div >> MANTISSA_BITS,
+        exp_second = second_div >> MANTISSA_BITS;
+    first_div = first_div & MASK;
+    second_div = second_div & MASK;
+    exp_first = exp_first & EXP_MASK;  // clear the sign
+    exp_second = exp_second & EXP_MASK;
+    new_exponent = MANTISSA_BITS + ((exp_first - exp_second) + EXP_BIAS);
+    int ee_div = 0;
+    if ::(first_div > 0) -> {
+      do ::(first_div < MAX_NUMBER_FIT) -> {
+        first_div = first_div << 1;
+        ee_div = ee_div + 1;
+      } ::else -> break;
+      od
+    }
+    ::else -> {
+      result_div = we_return;
+      break;
+    } 
+    fi
+
+    new_exponent = new_exponent - ee_div;
+
+    if ::(second_div > 0) -> { 
+      do ::((second_div % 2) == 0) {
+        second_div = second_div >>  1;
+        new_exponent = new_exponent - 1;
+        }  // hack: уменьшаем делимое
+        ::else -> break;
+      od 
+      }
+      ::else -> skip;
+    fi
+
+    int div_result = first_div / second_div;
+    printf("res=%d\n", div_result);
+    reminder = first_div - second_div * div_result;
+
+    do ::(div_result >= MAX_NUMBER) -> {
+      div_result =  div_result >> 1;
+      new_exponent = new_exponent + 1;
+    } ::else -> break;
+    od
+
+
+    int curr_exp = 0;
+
+    int rem_div_number1 = 0, rem_div_number2 = 0;
+    exponent_reminder = new_exponent;
+    // check the reminder and create a number1/number2 solution
+    if ::(reminder > 0) -> {
+      rem_div_number1 = reminder;
+      curr_exp = new_exponent;
+      do ::(rem_div_number1 >= MAX_NUMBER) -> {
+        rem_div_number1 = rem_div_number1 >> 1;
+        curr_exp = curr_exp + 1;
+      } ::else -> break;
+      od
+      do ::(rem_div_number1 < MAX_NUMBER / 2) -> {
+        rem_div_number1 = rem_div_number1 << 1;
+        curr_exp = curr_exp - 1;
+      } ::else -> break;
+      od
+
+      rem_div_number1 = rem_div_number1 | (curr_exp << MANTISSA_BITS);
+
+      rem_div_number2 = second_div;
+      curr_exp = EXP_BIAS + MANTISSA_BITS;
+      do ::(rem_div_number2 < MAX_NUMBER / 2) -> {
+        rem_div_number2 = rem_div_number2 << 1;
+        curr_exp = curr_exp - 1;
+      } ::else -> break;
+      od
+      rem_div_number2 = rem_div_number2 | (curr_exp << MANTISSA_BITS);
+    }::else -> skip;
+    fi
+
+    first_div = div_result;
+
+    if ::(first_div > 0) -> {
+      do ::(first_div < MAX_NUMBER / 2) {
+        first = first << 1;
+        new_exponent = new_exponent - 1;
+      } ::else -> break;
+      od
+    } ::else -> skip;
+    fi
+
+    if ::(first_div == MAX_NUMBER) -> {
+      first_div = first_div >> 1;
+      new_exponent = new_exponent + 1;
+    } ::else -> skip;
+    fi
+
+
+    byte sign = (sign_first_div + sign_second_div) % 2;
+    //fixOverflow(&first, &new_exponent);
+
+    new_exponent = (sign << EXP_SIZE) + new_exponent;
+    first_div = first_div | (new_exponent << MANTISSA_BITS);
+    add_pseudo(we_return, we_return, first_div);
+
+    if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
+        (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
+      break;
+    first_div = rem_div_number1;
+    second_div = rem_div_number2;
+    // continue to divide, get the reminder and add it to the result
+  } ::else -> break;
+  od
+
+  result_div = we_return;
+  }
+  fi
+fi
+
+}
+
+//-----------------------------------------------------------------
 inline pseudo_from_int(result, xx, rate_of_minus10) {
 int first_n = 1086324736;
 int second_n = 1112539136;
