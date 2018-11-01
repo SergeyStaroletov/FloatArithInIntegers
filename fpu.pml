@@ -38,8 +38,10 @@ inline print_pseudo_representation(f){
 
 
 //-----------------------------------------------------------------
-inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_two) {
+inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_two_pass) {
   int exp_first_sub_two = first_sub_two >> MANTISSA_BITS, exp_second_sub_two = second_sub_two >> MANTISSA_BITS;
+
+  byte sign_sub_two = sign_sub_two_pass;
 
   if ::(exp_first_sub_two == 0) -> exp_first_sub_two = EXP_BIAS;
     ::else -> skip; 
@@ -71,7 +73,7 @@ inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_tw
         res_sub_two = first_sub_two - (second_sub_two >> (exp_first_sub_two - exp_second_sub_two));
         if ::(res_sub_two < 0) -> {
           res_sub_two = -res_sub_two;
-          sign_sub_two = 1 - sign_sub_two; //not
+          sign_sub_two = (1 - sign_sub_two); //not
         } ::else -> skip;
         fi
       } ::else -> {
@@ -79,7 +81,7 @@ inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_tw
         res_sub_two = (first_sub_two >> (exp_second_sub_two - exp_first_sub_two)) - second_sub_two;
         if ::(res_sub_two < 0) -> {
           res_sub_two = -res_sub_two;
-          sign_sub_two = 1 - sign_sub_two; //not
+          sign_sub_two = (1 - sign_sub_two); //not
         } ::else -> skip;
         fi
       }
@@ -160,6 +162,31 @@ inline add_two_pseudo(result_add_two, first_add_two,  second_add_two, sign_add_t
 fi 
 }
 
+//-----------------------------------------------------------------
+
+inline add_pseudo(result_add, first_add, second_add) {
+  byte sign_first_add = first_add >> (MANTISSA_BITS + EXP_SIZE);
+  byte sign_second_add = second_add >> (MANTISSA_BITS + EXP_SIZE);
+  result_add = 0;
+
+  if ::(sign_first_add == 0 && sign_second_add == 0) -> { // A+B 
+     add_two_pseudo(result_add, first_add, second_add, 0)
+  }
+  ::else ->
+    if ::(sign_first_add == 1 && sign_second_add == 1) ->{  //-A-B=>-(A+B)
+       add_two_pseudo(result_add, first_add, second_add, 1);
+    } ::else ->
+      if ::(sign_first_add == 0 && sign_second_add == 1) -> {  // A-B
+        sub_two_pseudo(result_add, first_add, second_add, 0);
+      } ::else ->
+        if ::(sign_first_add == 1 && sign_second_add == 0) -> {  // -A+B
+           sub_two_pseudo(result_add, second_add, first_add, 0);
+        }
+        fi
+      fi
+    fi
+   fi
+}
 
 
 
@@ -245,11 +272,12 @@ pseudo_from_int(one, 20, 0);
 pseudo_from_int(two, 35, 1);
 //div_pseudo(three, one, two);
 
-bit signsign = 0;
+byte signsign = 0;
 
 sub_two_pseudo(three, one, two, signsign);
 add_two_pseudo(three, one, two, signsign);
 
+add_pseudo(three, one, two);
 
 print_pseudo_representation(three);
 
