@@ -197,7 +197,7 @@ void TestFPU::testCos() {
 
     float diff = fabs(actual - etalon);
 
-    printf("x = %f  sin(x) = %f    we_sin(x) = %f\n", x, etalon, actual);
+    printf("x = %f  cos(x) = %f    we_cos(x) = %f\n", x, etalon, actual);
 
     QVERIFY(diff < 0.01);
   }

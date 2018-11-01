@@ -367,8 +367,7 @@ pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
   int e = ea + eb - EXP_BIAS;
   a &= MASK;
   b &= MASK;
-  //__int64_t pp = ((__int64_t)a * b);
-  // int p = pp >> 23;
+
   pseudofloat p = ((a >> 8) * (b >> 8)) >> 7;  // or we overflow it
 
   char sign = (signA + signB) % 2;
