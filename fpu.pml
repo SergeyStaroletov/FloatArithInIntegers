@@ -38,7 +38,9 @@ inline print_pseudo_representation(f) {
 
 
 //-----------------------------------------------------------------
-inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_two_pass) {
+inline sub_two_pseudo(result_sub_two, first_sub_two_pass, second_sub_two_pass, sign_sub_two_pass) {
+  int first_sub_two = first_sub_two_pass;
+  int second_sub_two = second_sub_two_pass;
   int exp_first_sub_two = first_sub_two >> MANTISSA_BITS, exp_second_sub_two = second_sub_two >> MANTISSA_BITS;
 
   byte sign_sub_two = sign_sub_two_pass;
@@ -105,7 +107,9 @@ inline sub_two_pseudo(result_sub_two, first_sub_two, second_sub_two, sign_sub_tw
 }
 //-----------------------------------------------------------------
 
-inline add_two_pseudo(result_add_two, first_add_two,  second_add_two, sign_add_two) {
+inline add_two_pseudo(result_add_two, first_add_two_pass,  second_add_two_pass, sign_add_two) {
+  int first_add_two = first_add_two_pass;
+  int second_add_two = second_add_two_pass;
   int exp_first_add_two = first_add_two >> MANTISSA_BITS, exp_second_add_two = second_add_two >> MANTISSA_BITS;
 
   exp_first_add_two = exp_first_add_two & EXP_MASK;
@@ -436,7 +440,7 @@ div_pseudo(res, first_n, second_n);
 result = res;
 }
 //-----------------------------------------------------------------
-inline pseudofloat abs_pseudo(result_abs, x_abs) {
+inline abs_pseudo(result_abs, x_abs) {
   byte sign_abs = x_abs >> (MANTISSA_BITS + EXP_SIZE);
   int e_abs = x_abs >> (MANTISSA_BITS);
   e_abs = e_abs & EXP_MASK;
@@ -447,7 +451,45 @@ inline pseudofloat abs_pseudo(result_abs, x_abs) {
 //-----------------------------------------------------------------
 
 
+inline sinus(result_sinus, x) {
+  int i_sin = 1;
+  int current_sin = x;
+  int seq_n;
+  pseudo_from_int(seq_n, 1, 0);
 
+  int fact = seq_n;
+  int pow = x;
+  int p00000001;
+  pseudo_from_int(p00000001, 1, 5);//1 * 10^-5
+  
+  int xx = 0; 
+  mul_pseudo(xx, x, x);
+  sub_pseudo(xx, 0, xx);
+  //print_pseudo_as_float("1-xx = ", xx);
+
+  /// sinx = x - x^3/3! + x^5/5! ...
+  int abs_seq_n;
+  abs_pseudo(abs_seq_n, seq_n);
+  do ::((abs_seq_n > p00000001) && i_sin < 10) -> {
+    int fac_part_new;
+    pseudo_from_int(fac_part_new, ((2 * i_sin) * (2 * i_sin + 1)), 0);
+    mul_pseudo(fact, fact, fac_part_new);
+
+    mul_pseudo(pow, xx, pow);
+
+    div_pseudo(seq_n, pow, fact);
+    //printf("%d", i);
+    add_pseudo(current_sin, current_sin, seq_n);
+    //print_pseudo_as_float(" -> current sin = ", current_sin);
+    i_sin++;
+  } 
+  ::else -> break;
+  od
+
+  result_sinus = current_sin;
+}
+
+//-----------------------------------------------------------------
 
 active proctype main() {
 
@@ -470,6 +512,9 @@ add_pseudo(three, one, two);
 sub_pseudo(three, one, two);
 mul_pseudo(three, one, two);
 
+sinus(three, one);
+
 print_pseudo_representation(three);
+
 
 }
