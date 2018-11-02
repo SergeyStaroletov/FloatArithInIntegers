@@ -15,7 +15,7 @@
 int three = 1112539136;
 
 //-----------------------------------------------------------------
-inline print_pseudo_representation(f){ 
+inline print_pseudo_representation(f) { 
   byte sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e_rep = f >> MANTISSA_BITS;
   e_rep = e_rep & EXP_MASK;
@@ -274,11 +274,9 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
       new_exponent = new_exponent + 1;
     } ::else -> break;
     od
-
-
     int curr_exp = 0;
-
     int rem_div_number1 = 0, rem_div_number2 = 0;
+
     exponent_reminder = new_exponent;
     // check the reminder and create a number1/number2 solution
     if ::(reminder > 0) -> {
@@ -326,10 +324,8 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
     } ::else -> skip;
     fi
 
-
     byte sign = (sign_first_div + sign_second_div) % 2;
     //fixOverflow(&first, &new_exponent);
-
     new_exponent = (sign << EXP_SIZE) + new_exponent;
     first_div = first_div | (new_exponent << MANTISSA_BITS);
     add_pseudo(we_return, we_return, first_div);
@@ -349,7 +345,25 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
   }
   fi
 fi
+}
 
+//-----------------------------------------------------------------
+inline mul_pseudo(mul_result, a_mul_pass, b_mul_pass) {
+  int a_mul = a_mul_pass; //create copies
+  int b_mul = b_mul_pass; 
+  int ea_mul = a_mul >> MANTISSA_BITS, eb_mul = b_mul >> MANTISSA_BITS;
+  byte signA_mul = a_mul >> (MANTISSA_BITS + EXP_SIZE);
+  byte signB_mul = b_mul >> (MANTISSA_BITS + EXP_SIZE);
+  ea_mul = ea_mul & EXP_MASK;  // clear the sign
+  eb_mul = eb_mul & EXP_MASK;
+  int e_mul = ea_mul + eb_mul - EXP_BIAS;
+  a_mul = a_mul & MASK;
+  b_mul = b_mul & MASK;
+  int p_mul = ((a_mul >> 8) * (b_mul >> 8)) >> 7;  // or we overflow it
+  byte sign_mul = (signA_mul + signB_mul) % 2;
+  //fixOverflow(&p, &e);
+  e_mul = (sign_mul << EXP_SIZE) + e_mul;
+  mul_result =  p_mul | (e_mul << MANTISSA_BITS);
 }
 
 //-----------------------------------------------------------------
@@ -444,6 +458,7 @@ add_two_pseudo(three, one, two, signsign);
 
 add_pseudo(three, one, two);
 sub_pseudo(three, one, two);
+mul_pseudo(three, one, two);
 
 print_pseudo_representation(three);
 
