@@ -435,9 +435,19 @@ int res = 0;
 div_pseudo(res, first_n, second_n);
 result = res;
 }
-
-
 //-----------------------------------------------------------------
+inline pseudofloat abs_pseudo(result_abs, x_abs) {
+  byte sign_abs = x_abs >> (MANTISSA_BITS + EXP_SIZE);
+  int e_abs = x_abs >> (MANTISSA_BITS);
+  e_abs = e_abs & EXP_MASK;
+  int ff_abs = x_abs & MASK;
+  e_abs = (sign_abs << EXP_SIZE) + e_abs;
+  result_abs =  ff_abs | (e_abs << MANTISSA_BITS);
+}
+//-----------------------------------------------------------------
+
+
+
 
 active proctype main() {
 
