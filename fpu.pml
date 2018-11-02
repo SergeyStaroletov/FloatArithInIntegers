@@ -519,38 +519,144 @@ inline cosinus(result_cos, x) {
 inline X1(result_X1, t, om, C1, C3, C4) {
   //return C1 + C4 * (cos(om * t) - 1) / om + C3 * sin(om * t) / om;
   result_X1 = C1;
+  int temp_X1;
+  int odin; 
+  int omt;
+  pseudo_from_int(odin, 1, 0); //1
+  mul_pseudo(omt, om, t); //om * t
+  cosinus(temp_X1, omt); //cos(om * t)
+  sub_pseudo(temp_X1, temp_X1, odin);//cos(om * t)-1
+  mul_pseudo(temp_X1, temp_X1, C4);//C4 * (cos(om * t) - 1)
+  div_pseudo(temp_X1, om);//C4 * (cos(om * t) - 1) / om 
+  add_pseudo(result_X1, result_X1, temp_X1);
+  
+  sinus(temp_X1, omt); //sin(om * t)
+  mul_pseudo(temp_X1, temp_X1, C3); //C3 * sin(om * t) 
+  div_pseudo(temp_X1, om); //C3 * sin(om * t) / om
+
+  add_pseudo(result_X1, result_X1, temp_X1);
 
 }
-inline X2(result_X2, t, om, C2, C3, C4) {
+inline X2(result_X2, om, cos_omt, sin_omt, C2, C3, C4) {
   //return C2 + C3 * (1 - cos(om * t)) / om + C4 * sin(om * t) / om;
+  result_X2 = C2;
+  int temp_X2;
+  int odin; 
+  //int omt;mul_pseudo(omt, om, t); //om * t
+  pseudo_from_int(odin, 1, 0); //1
+  
+  temp_X2 = cos_omt;
+  //cosinus(temp_X2, omt); //cos(om * t)
+  sub_pseudo(temp_X2, odin, temp_X2);//1-cos(om * t)
+  mul_pseudo(temp_X2, temp_X2, C3);//C3 * (1-cos(om * t))
+  div_pseudo(temp_X2, om);//C4 * (1-cos(om * t)) / om 
+  add_pseudo(result_X2, result_X2, temp_X2);
+  
+  temp_X2 = sin_omt;
+  //sinus(temp_X2, omt); //sin(om * t)
+  mul_pseudo(temp_X2, temp_X1, C4); //C4 * sin(om * t) 
+  div_pseudo(temp_X2, om); //C4 * sin(om * t) / om
+
+  add_pseudo(result_X2, result_X2, temp_X1);
+
 }
-inline D1(result_D1, t,  om,  C3,  C4) {
+inline D1(result_D1, cos_omt, sin_omt,  C3,  C4) {
   //return C3 * cos(om * t) - C4 * sin(om * t);
+  int temp_D1;
+  temp_D1 = cos_omt;
+  //cosinus(temp_D1, omt); //cos(om * t)
+  mul_pseudo(result_D1, temp_D1, C3); //C3 * cos(om * t)
+  
+  temp_D1 = sin_omt
+  //sinus(temp_D1, omt); //sin(om * t);
+  mul_pseudo(temp_D1, temp_D1, C4); //C4 * sin(om * t)
+  sub_pseudo(result_D1, result_D1, temp_D1); //-
 }
-inline D2(result_D2, t, om, C3, C4) {
+inline D2(result_D2, cos_omt, sin_omt, C3, C4) {
   //return C4 * cos(om * t) + C3 * sin(om * t);
+  int temp_D2;
+  temp_D2 = cos_omt;
+  //cosinus(temp_D2, omt); //cos(om * t)
+  mul_pseudo(result_D2, temp_D2, C4); //C4 * cos(om * t)
+  
+  temp_D2 = sin_omt;
+  //sinus(temp_D2, omt); //sin(om * t);
+  mul_pseudo(temp_D2, temp_D2, C3); //C3 * sin(om * t)
+  add_pseudo(result_D2, result_D2, temp_D2); //+
 }
 
 inline Y1(result_Y1, t, e1,  C5) { 
+  int temp_Y1;
+  mul_pseudo(temp_Y1, e1, t);
+  add_pseudo(result_Y1, temp_Y1, C5);
   //return e1 * t + C5; 
 }
 
 inline Y2(result_Y2, t, e2, C6) { 
+  int temp_Y1;
+  mul_pseudo(temp_Y1, e1, t);
+  add_pseudo(result_Y1, temp_Y1, C5);
   //return e2 * t + C6; 
 }
 
-inline E1(result_E1, t, omy,  C7,  C8) {
+inline E1(result_E1, cos_omyt, sin_omyt,  C7,  C8) {
+  int temp_E1 = cos_omyt;
+  mul_pseudo(temp_E1, temp_E1, C7);
+  result_E1 = temp_E1;
+
+  int temp_E1 = sin_omyt;
+  mul_pseudo(temp_E1, temp_E1, C8);
+
+  sub_pseudo(result_E1, result_E1, temp_E1);
   //return C7 * cos(omy * t) - C8 * sin(omy * t);
 }
 
-inline E2(result_E2, t, omy, C7, C8) {
+inline E2(result_E2, cos_omyt, sin_omyt, C7, C8) {
+  int temp_E2 = cos_omyt;
+  mul_pseudo(temp_E2, temp_E2, C8);
+  result_E2 = temp_E2;
+
+  int temp_E2 = sin_omyt;
+  mul_pseudo(temp_E2, temp_E2, C7);
+
+  add_pseudo(result_E2, result_E2, temp_E2);
   //return C8 * cos(omy * t) + C7 * sin(omy * t);
 }
 
 inline check_safety(isSafe, x1, x2, y1, y2, protectedzone) {
+  int x1y1; 
+  sub_pseudo(x1y1, x1, y1);
+  mul_pseudo(x1y1, x1y1, x1y1); //:)
+  int x2y2;
+  sub_pseudo(x2y2, x2, y2);
+  mul_pseudo(x2y2, x2y2, x2y2); //:)
+  add_pseudo(x1y1, x1y1, x2y2);
+
+  mul_pseudo(x2y2, protectedzone, protectedzone);
+
+  if ::(x1x1 >= x2y2) -> isSafe = 1; 
+     ::else -> isSafe = 0;
+  fi
  // return ((x1 - y1) * (x1 - y1) + (x2 - y2) * (x2 - y2) >=  protectedzone * protectedzone);
 }
 
+inline MODEL() {
+
+  int t = 0;
+
+  int dt; pseudo_from_int(dt, 1, 2);//dt = 0.01;
+  int c1; pseudo_from_int(c1, -15, 1);//= -1.5
+  int c2; pseudo_from_int(c1, -2, 1);//= -0.2, 
+  
+  c3 = -10.1, c4 = 0.1, c5 = 1.5, c6 = 0.1,
+         c7 = 0.1, c8 = 8;
+  double om = 1, omy = 1;
+
+  double x1 = c1, x2 = c2, y1 = c5, y2 = c6, d1 = 0.5, d2 = +0.0105, e1 = 0,
+         e2 = 0;
+
+
+}
 
 
 //-----------------------------------------------------------------
