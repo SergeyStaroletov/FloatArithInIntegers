@@ -210,7 +210,7 @@ inline sub_pseudo(result_sub, first_sub, second_sub) {
 }
 
 //-----------------------------------------------------------------
-inline div_pseudo(result_div, first_div_pass, second_div) {
+inline div_pseudo(result_div, first_div_pass, second_div_pass) {
   int we_return = 0;
   int reminder = 1;
   int new_exponent;
@@ -222,11 +222,11 @@ inline div_pseudo(result_div, first_div_pass, second_div) {
 
   if ::(first_div == 0 && second_div == 0) -> 
     result_div = -1;  // nan = (0xfffff...)
-  ::else -> if ::(second == 0) -> {
+  ::else -> if ::(second_div == 0) -> {
     if ::(first_div > 0) -> 
-      result_div = (0x80 << MANTISSA_BITS);  //+inf
+      result_div = (128 << MANTISSA_BITS);  //0x80, +inf
        ::else ->
-      result_div = (0xff << MANTISSA_BITS);  //-inf
+      result_div = (255 << MANTISSA_BITS);  //0xff, -inf
     fi
   } ::else -> {
     //normal div
@@ -255,7 +255,7 @@ inline div_pseudo(result_div, first_div_pass, second_div) {
     new_exponent = new_exponent - ee_div;
 
     if ::(second_div > 0) -> { 
-      do ::((second_div % 2) == 0) {
+      do ::((second_div % 2) == 0) -> {
         second_div = second_div >>  1;
         new_exponent = new_exponent - 1;
         }  // hack: уменьшаем делимое
@@ -311,8 +311,9 @@ inline div_pseudo(result_div, first_div_pass, second_div) {
     first_div = div_result;
 
     if ::(first_div > 0) -> {
-      do ::(first_div < MAX_NUMBER / 2) {
-        first = first << 1;
+      do ::(first_div < MAX_NUMBER / 2) -> 
+      {
+        first_div = first_div << 1;
         new_exponent = new_exponent - 1;
       } ::else -> break;
       od
@@ -336,6 +337,8 @@ inline div_pseudo(result_div, first_div_pass, second_div) {
     if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
         (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
       break;
+    :: else -> skip;
+    fi
     first_div = rem_div_number1;
     second_div = rem_div_number2;
     // continue to divide, get the reminder and add it to the result
@@ -415,7 +418,7 @@ int second_n = 1112539136;
 //print_pseudo_representation(first_n);
 //print_pseudo_representation(second_n);
 int res = 0;
-//div_pseudo(res, first_n, second_n);
+div_pseudo(res, first_n, second_n);
 result = res;
 }
 
@@ -430,6 +433,9 @@ int two = 1112539136;
 pseudo_from_int(one, 20, 0);
 pseudo_from_int(two, 35, 1);
 //div_pseudo(three, one, two);
+print_pseudo_representation(one);
+print_pseudo_representation(two);
+
 
 byte signsign = 0;
 
