@@ -448,9 +448,9 @@ inline abs_pseudo(result_abs, x_abs) {
   e_abs = (sign_abs << EXP_SIZE) + e_abs;
   result_abs =  ff_abs | (e_abs << MANTISSA_BITS);
 }
+
+
 //-----------------------------------------------------------------
-
-
 inline sinus(result_sinus, x) {
   int i_sin = 1;
   int current_sin = x;
@@ -490,7 +490,18 @@ inline sinus(result_sinus, x) {
 }
 
 //-----------------------------------------------------------------
+inline cosinus(result_cos, x) {
+  int cos_val = 0;
+  int demie_pi;
+  pseudo_from_int(demie_pi, 3141592 / 2, 6);
+  int x1_cos;
+  sub_pseudo(x1_cos, demie_pi, x);
+  sinus(cos_val, x1_cos);
+  result_cos = cos_val;
+}
 
+
+//-----------------------------------------------------------------
 active proctype main() {
 
 int one = 1086324736;
@@ -513,6 +524,8 @@ sub_pseudo(three, one, two);
 mul_pseudo(three, one, two);
 
 sinus(three, one);
+cosinus(three, one);
+
 
 print_pseudo_representation(three);
 
