@@ -5,35 +5,37 @@
 @license GNU GPL
 */
 #define EXP_BIAS 128
-#define MAX_NUMBER 8388608  // 2^23
-#define MANTISSA_BITS 23
+#define MAX_NUMBER  4194304 // 2^23
+//#define MAX_NUMBER (8388608/2)  // 2^23
+#define MANTISSA_BITS 22
+//#define MANTISSA_BITS 23
 #define EXP_SIZE 8
 #define EXP_MASK 255
 #define MASK (MAX_NUMBER - 1)
-#define MAX_NUMBER_FIT 1073741824  // 2^32 - sign bit, /2 for promela, IDK
+#define MAX_NUMBER_FIT (1073741824/2)  // 2^32 - sign bit, /2 for promela
 
 int three = 1112539136;
 
 //-----------------------------------------------------------------
-inline print_pseudo_representation(f) { 
-  byte sign = f >> (MANTISSA_BITS + EXP_SIZE);
-  int e_rep = f >> MANTISSA_BITS;
+inline print_pseudo_representation(float_num) { 
+  byte sign = float_num >> (MANTISSA_BITS + EXP_SIZE);
+  int e_rep = float_num >> MANTISSA_BITS;
   e_rep = e_rep & EXP_MASK;
   e_rep = e_rep - EXP_BIAS;
-  int ff = f & MASK;
-  printf("[%d %d %d] = ", sign, e_rep, ff);
-  if ::(ff == 0) -> skip;
+  int f_mask = float_num & MASK;
+  printf("[%d %d %d] = ", sign, e_rep, f_mask);
+  if ::(f_mask == 0) -> skip;
    ::else ->
   do 
-    ::((ff % 2) == 0) -> {
-        ff = ff >> 1;
+    ::((f_mask % 2) == 0) -> {
+        f_mask = f_mask >> 1;
         e_rep++; 
     }
     ::else -> break;
   od
   fi
   e_rep = e_rep - MANTISSA_BITS;
-  printf("%d*2^%d\n", ff, e_rep); //useful for inserting to google and watch the numerical result
+  printf("%d*2^%d\n", f_mask, e_rep); //useful for inserting to google and watch the numerical result
 }
 
 
@@ -70,23 +72,34 @@ inline sub_two_pseudo(result_sub_two, first_sub_two_pass, second_sub_two_pass, s
       int res_sub_two = 0;
       int exp_sub_two;
 
-      if ::((exp_first_sub_two > exp_second_sub_two) && (first_sub_two != 0)) -> {
+      if ::(second_sub_two == 0) -> {
+        res_sub_two = first_sub_two;
         exp_sub_two = exp_first_sub_two;
-        res_sub_two = first_sub_two - (second_sub_two >> (exp_first_sub_two - exp_second_sub_two));
-        if ::(res_sub_two < 0) -> {
-          res_sub_two = -res_sub_two;
-          sign_sub_two = (1 - sign_sub_two); //not
-        } ::else -> skip;
+      } ::else -> 
+        if ::(first_sub_two == 0) -> {
+          res_sub_two = second_sub_two;
+          sign_sub_two = (1 - sign_sub_two);
+          exp_sub_two = exp_second_sub_two;
+        } ::else -> 
+          if ::(exp_first_sub_two > exp_second_sub_two) -> {
+            exp_sub_two = exp_first_sub_two;
+            res_sub_two = first_sub_two - (second_sub_two >> (exp_first_sub_two - exp_second_sub_two));
+            if ::(res_sub_two < 0) -> {
+              res_sub_two = -res_sub_two;
+              sign_sub_two = (1 - sign_sub_two); //not
+            } ::else -> skip;
+            fi
+          } ::else -> {
+            exp_sub_two = exp_second_sub_two;
+            res_sub_two = (first_sub_two >> (exp_second_sub_two - exp_first_sub_two)) - second_sub_two;
+            if ::(res_sub_two < 0) -> {
+              res_sub_two = -res_sub_two;
+              sign_sub_two = (1 - sign_sub_two); //not
+            } ::else -> skip;
+            fi
+          }
+          fi
         fi
-      } ::else -> {
-        exp_sub_two = exp_second_sub_two;
-        res_sub_two = (first_sub_two >> (exp_second_sub_two - exp_first_sub_two)) - second_sub_two;
-        if ::(res_sub_two < 0) -> {
-          res_sub_two = -res_sub_two;
-          sign_sub_two = (1 - sign_sub_two); //not
-        } ::else -> skip;
-        fi
-      }
       fi
 
       if ::(res_sub_two == 0) -> result_sub_two = 0; 
@@ -167,7 +180,11 @@ fi
 }
 
 //-----------------------------------------------------------------
-inline add_pseudo(result_add, first_add, second_add) {
+inline add_pseudo(result_add, first_add_pass, second_add_pass) {
+
+  int first_add = first_add_pass;
+  int second_add = second_add_pass;
+
   byte sign_first_add = first_add >> (MANTISSA_BITS + EXP_SIZE);
   byte sign_second_add = second_add >> (MANTISSA_BITS + EXP_SIZE);
   result_add = 0;
@@ -175,7 +192,7 @@ inline add_pseudo(result_add, first_add, second_add) {
      add_two_pseudo(result_add, first_add, second_add, 0)
   }
   ::else ->
-    if ::(sign_first_add == 1 && sign_second_add == 1) ->{  //-A-B=>-(A+B)
+    if ::(sign_first_add == 1 && sign_second_add == 1) -> {  //-A-B=>-(A+B)
        add_two_pseudo(result_add, first_add, second_add, 1);
     } ::else ->
       if ::(sign_first_add == 0 && sign_second_add == 1) -> {  // A-B
@@ -191,9 +208,14 @@ inline add_pseudo(result_add, first_add, second_add) {
 }
 
 //-----------------------------------------------------------------
-inline sub_pseudo(result_sub, first_sub, second_sub) {
+inline sub_pseudo(result_sub, first_sub_pass, second_sub_pass) {
+ 
+  int first_sub = first_sub_pass;
+  int second_sub = second_sub_pass;
+
   byte sign_first_sub = first_sub >> (MANTISSA_BITS + EXP_SIZE);
   byte sign_second_sub = second_sub >> (MANTISSA_BITS + EXP_SIZE);
+ 
   result_sub = 0;
   if ::(sign_first_sub == 0 && sign_second_sub == 0) -> {  // A-B
      sub_two_pseudo(result_sub, first_sub, second_sub, 0);
@@ -223,6 +245,9 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
   int second_div = second_div_pass;
   byte sign_first_div = first_div >> (MANTISSA_BITS + EXP_SIZE);
   byte sign_second_div = second_div >> (MANTISSA_BITS + EXP_SIZE);
+
+  result_div = 0;
+
 
   if ::(first_div == 0 && second_div == 0) -> 
     result_div = -1;  // nan = (0xfffff...)
@@ -269,10 +294,13 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
       ::else -> skip;
     fi
 
-    int div_result = first_div / second_div;
-    printf("res=%d\n", div_result);
+    int div_result = 0;
+    div_result = first_div / second_div;
+
+    printf("%d / %d res=%d\n",first_div, second_div, div_result);
     reminder = first_div - second_div * div_result;
 
+    reminder = 0;
     do ::(div_result >= MAX_NUMBER) -> {
       div_result =  div_result >> 1;
       new_exponent = new_exponent + 1;
@@ -333,7 +361,7 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
     new_exponent = (sign << EXP_SIZE) + new_exponent;
     first_div = first_div | (new_exponent << MANTISSA_BITS);
     add_pseudo(we_return, we_return, first_div);
-
+    //we_return = first_div;
     if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
         (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
       break;
@@ -349,6 +377,7 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
   }
   fi
 fi
+
 }
 
 //-----------------------------------------------------------------
@@ -363,7 +392,7 @@ inline mul_pseudo(mul_result, a_mul_pass, b_mul_pass) {
   int e_mul = ea_mul + eb_mul - EXP_BIAS;
   a_mul = a_mul & MASK;
   b_mul = b_mul & MASK;
-  int p_mul = ((a_mul >> 8) * (b_mul >> 8)) >> 7;  // or we overflow it
+  int p_mul = ((a_mul >> 8) * (b_mul >> 8)) >> (MANTISSA_BITS - 16);  // or we overflow it
   byte sign_mul = (signA_mul + signB_mul) % 2;
   //fixOverflow(&p, &e);
   e_mul = (sign_mul << EXP_SIZE) + e_mul;
@@ -466,27 +495,35 @@ inline sinus(result_sinus, x) {
   int xx = 0; 
   mul_pseudo(xx, x, x);
   sub_pseudo(xx, 0, xx);
-  //print_pseudo_as_float("1-xx = ", xx);
+  
+  //result_sinus = xx;
 
   /// sinx = x - x^3/3! + x^5/5! ...
-  int abs_seq_n;
+  int abs_seq_n = 0;
   abs_pseudo(abs_seq_n, seq_n);
-  do ::((abs_seq_n > p00000001) && i_sin < 10) -> {
+  do ::((abs_seq_n > p00000001) && i_sin < 2) -> {
+    
+    
     int fac_part_new;
     pseudo_from_int(fac_part_new, ((2 * i_sin) * (2 * i_sin + 1)), 0);
+    
     mul_pseudo(fact, fact, fac_part_new);
 
     mul_pseudo(pow, xx, pow);
+    printf("div->"); 
+    print_pseudo_representation(pow);
+    printf("/"); 
+    print_pseudo_representation(fact);
 
     div_pseudo(seq_n, pow, fact);
-    //printf("%d", i);
+    
     add_pseudo(current_sin, current_sin, seq_n);
-    //print_pseudo_as_float(" -> current sin = ", current_sin);
+    
     i_sin++;
   } 
   ::else -> break;
   od
-
+  
   result_sinus = current_sin;
 }
 
@@ -709,17 +746,10 @@ inline MODEL() {
       } ::else -> skip;
 
       add_pseudo(t, t, dt);
-
-
     } ::else -> break;
-
-
-
 
   } else -> skip;
   fi
-
-
 
 
 }
@@ -740,18 +770,21 @@ print_pseudo_representation(two);
 
 byte signsign = 0;
 
-sub_two_pseudo(three, one, two, signsign);
-add_two_pseudo(three, one, two, signsign);
+//sub_two_pseudo(three, one, two, signsign);
+//add_two_pseudo(three, one, two, signsign);
 
 add_pseudo(three, one, two);
 sub_pseudo(three, one, two);
 mul_pseudo(three, one, two);
 
-sinus(three, one);
-cosinus(three, one);
+int pi; pseudo_from_int(pi, 3141592/3, 6);
+
+sinus(three, pi);
+//cosinus(three, one);
 
 
 print_pseudo_representation(three);
+
 
 
 }
