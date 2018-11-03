@@ -554,7 +554,7 @@ inline cosinus(result_cos, x) {
               ((((x1) - (y1)) ^ (2)) + (((x2) - (y2)) ^ (2))) >=
    ((protectedzone) ^ (2))
 */
-inline X1(result_X1, cos_omt, sin_omt, om, C1, C3, C4) {
+inline X1(result_X1, cos_omt, sin_omt, Om, C1, C3, C4) {
   //return C1 + C4 * (cos(om * t) - 1) / om + C3 * sin(om * t) / om;
   result_X1 = C1;
   int temp_X1;
@@ -566,18 +566,18 @@ inline X1(result_X1, cos_omt, sin_omt, om, C1, C3, C4) {
   temp_X1 = cos_omt;
   sub_pseudo(temp_X1, temp_X1, odin);//cos(om * t)-1
   mul_pseudo(temp_X1, temp_X1, C4);//C4 * (cos(om * t) - 1)
-  div_pseudo(temp_X1, om);//C4 * (cos(om * t) - 1) / om 
+  div_pseudo(temp_X1, temp_X1, Om);//C4 * (cos(om * t) - 1) / om 
   add_pseudo(result_X1, result_X1, temp_X1);
   
   temp_X1 = sin_omt;
   //sinus(temp_X1, omt); //sin(om * t)
   mul_pseudo(temp_X1, temp_X1, C3); //C3 * sin(om * t) 
-  div_pseudo(temp_X1, om); //C3 * sin(om * t) / om
+  div_pseudo(temp_X1, temp_X1, Om); //C3 * sin(om * t) / om
 
   add_pseudo(result_X1, result_X1, temp_X1);
 }
 
-inline X2(result_X2, om, cos_omt, sin_omt, C2, C3, C4) {
+inline X2(result_X2, Om, cos_omt, sin_omt, C2, C3, C4) {
   //return C2 + C3 * (1 - cos(om * t)) / om + C4 * sin(om * t) / om;
   result_X2 = C2;
   int temp_X2;
@@ -589,15 +589,15 @@ inline X2(result_X2, om, cos_omt, sin_omt, C2, C3, C4) {
   //cosinus(temp_X2, omt); //cos(om * t)
   sub_pseudo(temp_X2, odin, temp_X2);//1-cos(om * t)
   mul_pseudo(temp_X2, temp_X2, C3);//C3 * (1-cos(om * t))
-  div_pseudo(temp_X2, om);//C4 * (1-cos(om * t)) / om 
+  div_pseudo(temp_X2, temp_X2, Om);//C4 * (1-cos(om * t)) / om 
   add_pseudo(result_X2, result_X2, temp_X2);
   
   temp_X2 = sin_omt;
   //sinus(temp_X2, omt); //sin(om * t)
-  mul_pseudo(temp_X2, temp_X1, C4); //C4 * sin(om * t) 
-  div_pseudo(temp_X2, om); //C4 * sin(om * t) / om
+  mul_pseudo(temp_X2, temp_X2, C4); //C4 * sin(om * t) 
+  div_pseudo(temp_X2, temp_X2, Om); //C4 * sin(om * t) / om
 
-  add_pseudo(result_X2, result_X2, temp_X1);
+  add_pseudo(result_X2, result_X2, temp_X2);
 }
 
 inline D1(result_D1, cos_omt, sin_omt, C3, C4) {
@@ -636,7 +636,7 @@ inline Y1(result_Y1, t, e1, C5) {
 inline Y2(result_Y2, t, e2, C6) { 
   int temp_Y1;
   mul_pseudo(temp_Y1, e1, t);
-  add_pseudo(result_Y1, temp_Y1, C5);
+  add_pseudo(result_Y2, temp_Y1, C6);
   //return e2 * t + C6; 
 }
 
@@ -645,7 +645,7 @@ inline E1(result_E1, cos_omyt, sin_omyt,  C7,  C8) {
   mul_pseudo(temp_E1, temp_E1, C7);
   result_E1 = temp_E1;
 
-  int temp_E1 = sin_omyt;
+  temp_E1 = sin_omyt;
   mul_pseudo(temp_E1, temp_E1, C8);
 
   sub_pseudo(result_E1, result_E1, temp_E1);
@@ -657,7 +657,7 @@ inline E2(result_E2, cos_omyt, sin_omyt, C7, C8) {
   mul_pseudo(temp_E2, temp_E2, C8);
   result_E2 = temp_E2;
 
-  int temp_E2 = sin_omyt;
+  temp_E2 = sin_omyt;
   mul_pseudo(temp_E2, temp_E2, C7);
 
   add_pseudo(result_E2, result_E2, temp_E2);
@@ -675,7 +675,7 @@ inline check_safety(isSafe, x1, x2, y1, y2, protectedzone) {
 
   mul_pseudo(x2y2, protectedzone, protectedzone);
 
-  if ::(x1x1 >= x2y2) -> isSafe = 1; 
+  if ::(x1y1 >= x2y2) -> isSafe = 1; 
      ::else -> isSafe = 0;
   fi
  // return ((x1 - y1) * (x1 - y1) + (x2 - y2) * (x2 - y2) >=  protectedzone * protectedzone);
@@ -725,29 +725,47 @@ inline MODEL() {
     do:: (t < t_max) -> {
       int e1_old = e1;
       int e2_old = e2;
-      int omt, cos_omt, sin_omt;
+      int omt, cos_omt_, sin_omt_;
       mul_pseudo(omt, om, t); //om * t
-      cosinus(cos_omt, omt); //cos(om * t)
-      sinus(sin_omt, omt);   //sin(om * t)
+      cosinus(cos_omt_, omt); //cos(om * t)
+      sinus(sin_omt_, omt);   //sin(om * t)
 
-      X1(x1, cos_omt, sin_omt, om, c1, c3, c4);
-      X2(x2, cos_omt, sin_omt, om, c2, c3, c4);
+      X1(x1, cos_omt_, sin_omt_, om, c1, c3, c4);
+      X2(x2, cos_omt_, sin_omt_, om, c2, c3, c4);
       Y1(y1, t, e1_old, c5);
       Y2(y2, t, e2_old, c6);
-      D1(d1, cos_omt, sin_omt, c3, c4);
-      D2(d2, cos_omt, sin_omt, c3, c4);
-      E1(e1, cos_omt, sin_omt, c7, c8);
-      E2(e2, cos_omt, sin_omt, c7, c8);
+      D1(d1, cos_omt_, sin_omt_, c3, c4);
+      D2(d2, cos_omt_, sin_omt_, c3, c4);
+      E1(e1, cos_omt_, sin_omt_, c7, c8);
+      E2(e2, cos_omt_, sin_omt_, c7, c8);
       
       check_safety(safe, x1, x2, y1, y2, pz);
 
       if ::(safe == 0) -> {
         printf("Safety check violtion!");
       } ::else -> skip;
+      fi
+
+      printf("\n-----------------------------\n");
+      printf("t = "); 
+      print_pseudo_representation(t);
+      printf("\n X1 = ");
+      print_pseudo_representation(x1);
+      printf("\n X2 = ");
+      print_pseudo_representation(x2);
+      printf("\n Y1 = ");
+      print_pseudo_representation(y1);
+      printf("\n Y2 = ");
+      print_pseudo_representation(y2);
+
+      
+      
+
+
 
       add_pseudo(t, t, dt);
     } ::else -> break;
-
+    od
   } else -> skip;
   fi
 
@@ -773,17 +791,18 @@ byte signsign = 0;
 //sub_two_pseudo(three, one, two, signsign);
 //add_two_pseudo(three, one, two, signsign);
 
-add_pseudo(three, one, two);
-sub_pseudo(three, one, two);
-mul_pseudo(three, one, two);
+//add_pseudo(three, one, two);
+//sub_pseudo(three, one, two);
+//mul_pseudo(three, one, two);
 
-int pi; pseudo_from_int(pi, 3141592/3, 6);
+//int pi; pseudo_from_int(pi, 3141592/3, 6);
 
-sinus(three, pi);
+//sinus(three, pi);
 //cosinus(three, one);
 
+MODEL();
 
-print_pseudo_representation(three);
+//print_pseudo_representation(three);
 
 
 
