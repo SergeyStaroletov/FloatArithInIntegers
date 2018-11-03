@@ -33,7 +33,7 @@ inline print_pseudo_representation(f) {
   od
   fi
   e_rep = e_rep - MANTISSA_BITS;
-  printf("%d*2^%d\n", ff, e_rep);
+  printf("%d*2^%d\n", ff, e_rep); //useful for inserting to google and watch the numerical result
 }
 
 
@@ -372,7 +372,7 @@ inline mul_pseudo(mul_result, a_mul_pass, b_mul_pass) {
 
 //-----------------------------------------------------------------
 inline pseudo_from_int(result, xx, rate_of_minus10) {
-int first_n = 1086324736;
+int first_n = 1086324736;//test
 int second_n = 1112539136;
   
   int x = xx;  
@@ -433,12 +433,13 @@ int second_n = 1112539136;
   
   second_n = x | (e << (MANTISSA_BITS));
   
-//print_pseudo_representation(first_n);
-//print_pseudo_representation(second_n);
-int res = 0;
-div_pseudo(res, first_n, second_n);
-result = res;
+  //print_pseudo_representation(first_n);
+  //print_pseudo_representation(second_n);
+  int res = 0;
+  div_pseudo(res, first_n, second_n);
+  result = res;
 }
+
 //-----------------------------------------------------------------
 inline abs_pseudo(result_abs, x_abs) {
   byte sign_abs = x_abs >> (MANTISSA_BITS + EXP_SIZE);
@@ -516,27 +517,29 @@ inline cosinus(result_cos, x) {
               ((((x1) - (y1)) ^ (2)) + (((x2) - (y2)) ^ (2))) >=
    ((protectedzone) ^ (2))
 */
-inline X1(result_X1, t, om, C1, C3, C4) {
+inline X1(result_X1, cos_omt, sin_omt, om, C1, C3, C4) {
   //return C1 + C4 * (cos(om * t) - 1) / om + C3 * sin(om * t) / om;
   result_X1 = C1;
   int temp_X1;
   int odin; 
-  int omt;
+  //int omt;
   pseudo_from_int(odin, 1, 0); //1
-  mul_pseudo(omt, om, t); //om * t
-  cosinus(temp_X1, omt); //cos(om * t)
+  //mul_pseudo(omt, om, t); //om * t
+  //cosinus(temp_X1, omt); //cos(om * t)
+  temp_X1 = cos_omt;
   sub_pseudo(temp_X1, temp_X1, odin);//cos(om * t)-1
   mul_pseudo(temp_X1, temp_X1, C4);//C4 * (cos(om * t) - 1)
   div_pseudo(temp_X1, om);//C4 * (cos(om * t) - 1) / om 
   add_pseudo(result_X1, result_X1, temp_X1);
   
-  sinus(temp_X1, omt); //sin(om * t)
+  temp_X1 = sin_omt;
+  //sinus(temp_X1, omt); //sin(om * t)
   mul_pseudo(temp_X1, temp_X1, C3); //C3 * sin(om * t) 
   div_pseudo(temp_X1, om); //C3 * sin(om * t) / om
 
   add_pseudo(result_X1, result_X1, temp_X1);
-
 }
+
 inline X2(result_X2, om, cos_omt, sin_omt, C2, C3, C4) {
   //return C2 + C3 * (1 - cos(om * t)) / om + C4 * sin(om * t) / om;
   result_X2 = C2;
@@ -558,20 +561,21 @@ inline X2(result_X2, om, cos_omt, sin_omt, C2, C3, C4) {
   div_pseudo(temp_X2, om); //C4 * sin(om * t) / om
 
   add_pseudo(result_X2, result_X2, temp_X1);
-
 }
-inline D1(result_D1, cos_omt, sin_omt,  C3,  C4) {
+
+inline D1(result_D1, cos_omt, sin_omt, C3, C4) {
   //return C3 * cos(om * t) - C4 * sin(om * t);
   int temp_D1;
   temp_D1 = cos_omt;
   //cosinus(temp_D1, omt); //cos(om * t)
   mul_pseudo(result_D1, temp_D1, C3); //C3 * cos(om * t)
   
-  temp_D1 = sin_omt
+  temp_D1 = sin_omt;
   //sinus(temp_D1, omt); //sin(om * t);
   mul_pseudo(temp_D1, temp_D1, C4); //C4 * sin(om * t)
   sub_pseudo(result_D1, result_D1, temp_D1); //-
 }
+
 inline D2(result_D2, cos_omt, sin_omt, C3, C4) {
   //return C4 * cos(om * t) + C3 * sin(om * t);
   int temp_D2;
@@ -585,7 +589,7 @@ inline D2(result_D2, cos_omt, sin_omt, C3, C4) {
   add_pseudo(result_D2, result_D2, temp_D2); //+
 }
 
-inline Y1(result_Y1, t, e1,  C5) { 
+inline Y1(result_Y1, t, e1, C5) { 
   int temp_Y1;
   mul_pseudo(temp_Y1, e1, t);
   add_pseudo(result_Y1, temp_Y1, C5);
@@ -640,20 +644,82 @@ inline check_safety(isSafe, x1, x2, y1, y2, protectedzone) {
  // return ((x1 - y1) * (x1 - y1) + (x2 - y2) * (x2 - y2) >=  protectedzone * protectedzone);
 }
 
+
+bit OK = 1;//to check it
+
 inline MODEL() {
 
+  // time
   int t = 0;
-
-  int dt; pseudo_from_int(dt, 1, 2);//dt = 0.01;
-  int c1; pseudo_from_int(c1, -15, 1);//= -1.5
-  int c2; pseudo_from_int(c1, -2, 1);//= -0.2, 
+  int t_max; pseudo_from_int(t_max, 1, 0);// t_max = 1
+  int dt; pseudo_from_int(dt, 1, 2);    //dt = 0.01
   
-  c3 = -10.1, c4 = 0.1, c5 = 1.5, c6 = 0.1,
-         c7 = 0.1, c8 = 8;
-  double om = 1, omy = 1;
+  // diff eq constants
+  int c1; pseudo_from_int(c1, -15, 1);  //= -1.5
+  int c2; pseudo_from_int(c1, -2, 1);   //= -0.2
+  int c3; pseudo_from_int(c3, -101, 1); //= -10.1 
+  int c4; pseudo_from_int(c4, 1, 1);    //= 0.1
+  int c5; pseudo_from_int(c5, 15, 1);   //= 1.5, 
+  int c6; c6 = c4;   //= 0.1
+  int c7; c7 = c4;   //= 0.1
+  int c8; pseudo_from_int(c8, 8, 0);   //c8 = 8;
 
-  double x1 = c1, x2 = c2, y1 = c5, y2 = c6, d1 = 0.5, d2 = +0.0105, e1 = 0,
-         e2 = 0;
+  // ommm
+  int om; pseudo_from_int(om, 1, 0);    // = 1 
+  int omy; omy = om;//pseudo_from_int(omy, 1, 0);// = 1 
+
+  int x1 = c1;
+  int x2 = c2;
+  int y1 = c5;
+  int y2 = c6;
+
+  // d, e
+  int d1; pseudo_from_int(d1, 5, 1);    // = 0.5 
+  int d2; pseudo_from_int(d1, 105, 4);  // = 0.0105
+  int e1 = 0;
+  int e2 = 0;
+
+
+  int pz; pseudo_from_int(pz, 1, 1);  //protectedzone = 0.1
+  int safe = 1;
+  check_safety(safe, x1, x2, y1, y2, pz);
+
+  if ::(safe) -> {
+    do:: (t < t_max) -> {
+      int e1_old = e1;
+      int e2_old = e2;
+      int omt, cos_omt, sin_omt;
+      mul_pseudo(omt, om, t); //om * t
+      cosinus(cos_omt, omt); //cos(om * t)
+      sinus(sin_omt, omt);   //sin(om * t)
+
+      X1(x1, cos_omt, sin_omt, om, c1, c3, c4);
+      X2(x2, cos_omt, sin_omt, om, c2, c3, c4);
+      Y1(y1, t, e1_old, c5);
+      Y2(y2, t, e2_old, c6);
+      D1(d1, cos_omt, sin_omt, c3, c4);
+      D2(d2, cos_omt, sin_omt, c3, c4);
+      E1(e1, cos_omt, sin_omt, c7, c8);
+      E2(e2, cos_omt, sin_omt, c7, c8);
+      
+      check_safety(safe, x1, x2, y1, y2, pz);
+
+      if ::(safe == 0) -> {
+        printf("Safety check violtion!");
+      } ::else -> skip;
+
+      add_pseudo(t, t, dt);
+
+
+    } ::else -> break;
+
+
+
+
+  } else -> skip;
+  fi
+
+
 
 
 }
