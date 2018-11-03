@@ -4,6 +4,9 @@
 @author Sergey Staroletov serg_soft@mail.ru
 @license GNU GPL
 */
+
+
+
 #define EXP_BIAS 128
 #define MAX_NUMBER  4194304 // 2^23
 //#define MAX_NUMBER (8388608/2)  // 2^23
@@ -17,7 +20,7 @@
 int three = 1112539136;
 
 //-----------------------------------------------------------------
-inline print_pseudo_representation(float_num) { 
+inline print_float_representation(float_num) { 
   byte sign = float_num >> (MANTISSA_BITS + EXP_SIZE);
   int e_rep = float_num >> MANTISSA_BITS;
   e_rep = e_rep & EXP_MASK;
@@ -40,7 +43,7 @@ inline print_pseudo_representation(float_num) {
 
 
 //-----------------------------------------------------------------
-inline sub_two_pseudo(result_sub_two, first_sub_two_pass, second_sub_two_pass, sign_sub_two_pass) {
+inline sub_two_float(result_sub_two, first_sub_two_pass, second_sub_two_pass, sign_sub_two_pass) {
   int first_sub_two = first_sub_two_pass;
   int second_sub_two = second_sub_two_pass;
   int exp_first_sub_two = first_sub_two >> MANTISSA_BITS, exp_second_sub_two = second_sub_two >> MANTISSA_BITS;
@@ -120,7 +123,7 @@ inline sub_two_pseudo(result_sub_two, first_sub_two_pass, second_sub_two_pass, s
 }
 //-----------------------------------------------------------------
 
-inline add_two_pseudo(result_add_two, first_add_two_pass,  second_add_two_pass, sign_add_two) {
+inline add_two_float(result_add_two, first_add_two_pass,  second_add_two_pass, sign_add_two) {
   int first_add_two = first_add_two_pass;
   int second_add_two = second_add_two_pass;
   int exp_first_add_two = first_add_two >> MANTISSA_BITS, exp_second_add_two = second_add_two >> MANTISSA_BITS;
@@ -180,7 +183,7 @@ fi
 }
 
 //-----------------------------------------------------------------
-inline add_pseudo(result_add, first_add_pass, second_add_pass) {
+inline add_float(result_add, first_add_pass, second_add_pass) {
 
   int first_add = first_add_pass;
   int second_add = second_add_pass;
@@ -189,17 +192,17 @@ inline add_pseudo(result_add, first_add_pass, second_add_pass) {
   byte sign_second_add = second_add >> (MANTISSA_BITS + EXP_SIZE);
   result_add = 0;
   if ::(sign_first_add == 0 && sign_second_add == 0) -> { // A+B 
-     add_two_pseudo(result_add, first_add, second_add, 0)
+     add_two_float(result_add, first_add, second_add, 0)
   }
   ::else ->
     if ::(sign_first_add == 1 && sign_second_add == 1) -> {  //-A-B=>-(A+B)
-       add_two_pseudo(result_add, first_add, second_add, 1);
+       add_two_float(result_add, first_add, second_add, 1);
     } ::else ->
       if ::(sign_first_add == 0 && sign_second_add == 1) -> {  // A-B
-        sub_two_pseudo(result_add, first_add, second_add, 0);
+        sub_two_float(result_add, first_add, second_add, 0);
       } ::else ->
         if ::(sign_first_add == 1 && sign_second_add == 0) -> {  // -A+B
-           sub_two_pseudo(result_add, second_add, first_add, 0);
+           sub_two_float(result_add, second_add, first_add, 0);
         }
         fi
       fi
@@ -208,7 +211,7 @@ inline add_pseudo(result_add, first_add_pass, second_add_pass) {
 }
 
 //-----------------------------------------------------------------
-inline sub_pseudo(result_sub, first_sub_pass, second_sub_pass) {
+inline sub_float(result_sub, first_sub_pass, second_sub_pass) {
  
   int first_sub = first_sub_pass;
   int second_sub = second_sub_pass;
@@ -218,16 +221,16 @@ inline sub_pseudo(result_sub, first_sub_pass, second_sub_pass) {
  
   result_sub = 0;
   if ::(sign_first_sub == 0 && sign_second_sub == 0) -> {  // A-B
-     sub_two_pseudo(result_sub, first_sub, second_sub, 0);
+     sub_two_float(result_sub, first_sub, second_sub, 0);
   } ::else -> 
     if ::(sign_first_sub == 1 && sign_second_sub == 1) -> {  //-A--B=>-A+B=>B-A
-       sub_two_pseudo(result_sub, second_sub, first_sub, 0);
+       sub_two_float(result_sub, second_sub, first_sub, 0);
     } ::else ->
       if ::(sign_first_sub == 0 && sign_second_sub == 1) -> {  // A--B=>A+B
-         add_two_pseudo(result_sub, first_sub, second_sub, 0);
+         add_two_float(result_sub, first_sub, second_sub, 0);
       } :: else ->
         if ::(sign_first_sub == 1 && sign_second_sub == 0) -> {  // -A-B=> -(A+B)
-           add_two_pseudo(result_sub, first_sub, second_sub, 1);
+           add_two_float(result_sub, first_sub, second_sub, 1);
         }
         fi
       fi
@@ -236,7 +239,7 @@ inline sub_pseudo(result_sub, first_sub_pass, second_sub_pass) {
 }
 
 //-----------------------------------------------------------------
-inline div_pseudo(result_div, first_div_pass, second_div_pass) {
+inline div_float(result_div, first_div_pass, second_div_pass) {
   int we_return = 0;
   int reminder = 1;
   int new_exponent;
@@ -360,7 +363,7 @@ inline div_pseudo(result_div, first_div_pass, second_div_pass) {
     //fixOverflow(&first, &new_exponent);
     new_exponent = (sign << EXP_SIZE) + new_exponent;
     first_div = first_div | (new_exponent << MANTISSA_BITS);
-    add_pseudo(we_return, we_return, first_div);
+    add_float(we_return, we_return, first_div);
     //we_return = first_div;
     if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
         (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
@@ -381,7 +384,7 @@ fi
 }
 
 //-----------------------------------------------------------------
-inline mul_pseudo(mul_result, a_mul_pass, b_mul_pass) {
+inline mul_float(mul_result, a_mul_pass, b_mul_pass) {
   int a_mul = a_mul_pass; //create copies
   int b_mul = b_mul_pass; 
   int ea_mul = a_mul >> MANTISSA_BITS, eb_mul = b_mul >> MANTISSA_BITS;
@@ -400,7 +403,7 @@ inline mul_pseudo(mul_result, a_mul_pass, b_mul_pass) {
 }
 
 //-----------------------------------------------------------------
-inline pseudo_from_int(result, xx, rate_of_minus10) {
+inline float_from_int(result, xx, rate_of_minus10) {
 int first_n = 1086324736;//test
 int second_n = 1112539136;
   
@@ -462,15 +465,15 @@ int second_n = 1112539136;
   
   second_n = x | (e << (MANTISSA_BITS));
   
-  //print_pseudo_representation(first_n);
-  //print_pseudo_representation(second_n);
+  //print_float_representation(first_n);
+  //print_float_representation(second_n);
   int res = 0;
-  div_pseudo(res, first_n, second_n);
+  div_float(res, first_n, second_n);
   result = res;
 }
 
 //-----------------------------------------------------------------
-inline abs_pseudo(result_abs, x_abs) {
+inline abs_float(result_abs, x_abs) {
   byte sign_abs = x_abs >> (MANTISSA_BITS + EXP_SIZE);
   int e_abs = x_abs >> (MANTISSA_BITS);
   e_abs = e_abs & EXP_MASK;
@@ -485,39 +488,39 @@ inline sinus(result_sinus, x) {
   int i_sin = 1;
   int current_sin = x;
   int seq_n;
-  pseudo_from_int(seq_n, 1, 0);
+  float_from_int(seq_n, 1, 0);
 
   int fact = seq_n;
   int pow = x;
   int p00000001;
-  pseudo_from_int(p00000001, 1, 5);//1 * 10^-5
+  float_from_int(p00000001, 1, 5);//1 * 10^-5
   
   int xx = 0; 
-  mul_pseudo(xx, x, x);
-  sub_pseudo(xx, 0, xx);
+  mul_float(xx, x, x);
+  sub_float(xx, 0, xx);
   
   //result_sinus = xx;
 
   /// sinx = x - x^3/3! + x^5/5! ...
   int abs_seq_n = 0;
-  abs_pseudo(abs_seq_n, seq_n);
+  abs_float(abs_seq_n, seq_n);
   do ::((abs_seq_n > p00000001) && i_sin < 2) -> {
     
     
     int fac_part_new;
-    pseudo_from_int(fac_part_new, ((2 * i_sin) * (2 * i_sin + 1)), 0);
+    float_from_int(fac_part_new, ((2 * i_sin) * (2 * i_sin + 1)), 0);
     
-    mul_pseudo(fact, fact, fac_part_new);
+    mul_float(fact, fact, fac_part_new);
 
-    mul_pseudo(pow, xx, pow);
+    mul_float(pow, xx, pow);
     printf("div->"); 
-    print_pseudo_representation(pow);
+    print_float_representation(pow);
     printf("/"); 
-    print_pseudo_representation(fact);
+    print_float_representation(fact);
 
-    div_pseudo(seq_n, pow, fact);
+    div_float(seq_n, pow, fact);
     
-    add_pseudo(current_sin, current_sin, seq_n);
+    add_float(current_sin, current_sin, seq_n);
     
     i_sin++;
   } 
@@ -531,9 +534,9 @@ inline sinus(result_sinus, x) {
 inline cosinus(result_cos, x) {
   int cos_val = 0;
   int demie_pi;
-  pseudo_from_int(demie_pi, 3141592 / 2, 6);
+  float_from_int(demie_pi, 3141592 / 2, 6);
   int x1_cos;
-  sub_pseudo(x1_cos, demie_pi, x);
+  sub_float(x1_cos, demie_pi, x);
   sinus(cos_val, x1_cos);
   result_cos = cos_val;
 }
@@ -560,21 +563,21 @@ inline X1(result_X1, cos_omt, sin_omt, Om, C1, C3, C4) {
   int temp_X1;
   int odin; 
   //int omt;
-  pseudo_from_int(odin, 1, 0); //1
-  //mul_pseudo(omt, om, t); //om * t
+  float_from_int(odin, 1, 0); //1
+  //mul_float(omt, om, t); //om * t
   //cosinus(temp_X1, omt); //cos(om * t)
   temp_X1 = cos_omt;
-  sub_pseudo(temp_X1, temp_X1, odin);//cos(om * t)-1
-  mul_pseudo(temp_X1, temp_X1, C4);//C4 * (cos(om * t) - 1)
-  div_pseudo(temp_X1, temp_X1, Om);//C4 * (cos(om * t) - 1) / om 
-  add_pseudo(result_X1, result_X1, temp_X1);
+  sub_float(temp_X1, temp_X1, odin);//cos(om * t)-1
+  mul_float(temp_X1, temp_X1, C4);//C4 * (cos(om * t) - 1)
+  div_float(temp_X1, temp_X1, Om);//C4 * (cos(om * t) - 1) / om 
+  add_float(result_X1, result_X1, temp_X1);
   
   temp_X1 = sin_omt;
   //sinus(temp_X1, omt); //sin(om * t)
-  mul_pseudo(temp_X1, temp_X1, C3); //C3 * sin(om * t) 
-  div_pseudo(temp_X1, temp_X1, Om); //C3 * sin(om * t) / om
+  mul_float(temp_X1, temp_X1, C3); //C3 * sin(om * t) 
+  div_float(temp_X1, temp_X1, Om); //C3 * sin(om * t) / om
 
-  add_pseudo(result_X1, result_X1, temp_X1);
+  add_float(result_X1, result_X1, temp_X1);
 }
 
 inline X2(result_X2, Om, cos_omt, sin_omt, C2, C3, C4) {
@@ -582,22 +585,22 @@ inline X2(result_X2, Om, cos_omt, sin_omt, C2, C3, C4) {
   result_X2 = C2;
   int temp_X2;
   int odin; 
-  //int omt;mul_pseudo(omt, om, t); //om * t
-  pseudo_from_int(odin, 1, 0); //1
+  //int omt;mul_float(omt, om, t); //om * t
+  float_from_int(odin, 1, 0); //1
   
   temp_X2 = cos_omt;
   //cosinus(temp_X2, omt); //cos(om * t)
-  sub_pseudo(temp_X2, odin, temp_X2);//1-cos(om * t)
-  mul_pseudo(temp_X2, temp_X2, C3);//C3 * (1-cos(om * t))
-  div_pseudo(temp_X2, temp_X2, Om);//C4 * (1-cos(om * t)) / om 
-  add_pseudo(result_X2, result_X2, temp_X2);
+  sub_float(temp_X2, odin, temp_X2);//1-cos(om * t)
+  mul_float(temp_X2, temp_X2, C3);//C3 * (1-cos(om * t))
+  div_float(temp_X2, temp_X2, Om);//C4 * (1-cos(om * t)) / om 
+  add_float(result_X2, result_X2, temp_X2);
   
   temp_X2 = sin_omt;
   //sinus(temp_X2, omt); //sin(om * t)
-  mul_pseudo(temp_X2, temp_X2, C4); //C4 * sin(om * t) 
-  div_pseudo(temp_X2, temp_X2, Om); //C4 * sin(om * t) / om
+  mul_float(temp_X2, temp_X2, C4); //C4 * sin(om * t) 
+  div_float(temp_X2, temp_X2, Om); //C4 * sin(om * t) / om
 
-  add_pseudo(result_X2, result_X2, temp_X2);
+  add_float(result_X2, result_X2, temp_X2);
 }
 
 inline D1(result_D1, cos_omt, sin_omt, C3, C4) {
@@ -605,12 +608,12 @@ inline D1(result_D1, cos_omt, sin_omt, C3, C4) {
   int temp_D1;
   temp_D1 = cos_omt;
   //cosinus(temp_D1, omt); //cos(om * t)
-  mul_pseudo(result_D1, temp_D1, C3); //C3 * cos(om * t)
+  mul_float(result_D1, temp_D1, C3); //C3 * cos(om * t)
   
   temp_D1 = sin_omt;
   //sinus(temp_D1, omt); //sin(om * t);
-  mul_pseudo(temp_D1, temp_D1, C4); //C4 * sin(om * t)
-  sub_pseudo(result_D1, result_D1, temp_D1); //-
+  mul_float(temp_D1, temp_D1, C4); //C4 * sin(om * t)
+  sub_float(result_D1, result_D1, temp_D1); //-
 }
 
 inline D2(result_D2, cos_omt, sin_omt, C3, C4) {
@@ -618,62 +621,62 @@ inline D2(result_D2, cos_omt, sin_omt, C3, C4) {
   int temp_D2;
   temp_D2 = cos_omt;
   //cosinus(temp_D2, omt); //cos(om * t)
-  mul_pseudo(result_D2, temp_D2, C4); //C4 * cos(om * t)
+  mul_float(result_D2, temp_D2, C4); //C4 * cos(om * t)
   
   temp_D2 = sin_omt;
   //sinus(temp_D2, omt); //sin(om * t);
-  mul_pseudo(temp_D2, temp_D2, C3); //C3 * sin(om * t)
-  add_pseudo(result_D2, result_D2, temp_D2); //+
+  mul_float(temp_D2, temp_D2, C3); //C3 * sin(om * t)
+  add_float(result_D2, result_D2, temp_D2); //+
 }
 
 inline Y1(result_Y1, t, e1, C5) { 
   int temp_Y1;
-  mul_pseudo(temp_Y1, e1, t);
-  add_pseudo(result_Y1, temp_Y1, C5);
+  mul_float(temp_Y1, e1, t);
+  add_float(result_Y1, temp_Y1, C5);
   //return e1 * t + C5; 
 }
 
 inline Y2(result_Y2, t, e2, C6) { 
   int temp_Y1;
-  mul_pseudo(temp_Y1, e1, t);
-  add_pseudo(result_Y2, temp_Y1, C6);
+  mul_float(temp_Y1, e1, t);
+  add_float(result_Y2, temp_Y1, C6);
   //return e2 * t + C6; 
 }
 
 inline E1(result_E1, cos_omyt, sin_omyt,  C7,  C8) {
   int temp_E1 = cos_omyt;
-  mul_pseudo(temp_E1, temp_E1, C7);
+  mul_float(temp_E1, temp_E1, C7);
   result_E1 = temp_E1;
 
   temp_E1 = sin_omyt;
-  mul_pseudo(temp_E1, temp_E1, C8);
+  mul_float(temp_E1, temp_E1, C8);
 
-  sub_pseudo(result_E1, result_E1, temp_E1);
+  sub_float(result_E1, result_E1, temp_E1);
   //return C7 * cos(omy * t) - C8 * sin(omy * t);
 }
 
 inline E2(result_E2, cos_omyt, sin_omyt, C7, C8) {
   int temp_E2 = cos_omyt;
-  mul_pseudo(temp_E2, temp_E2, C8);
+  mul_float(temp_E2, temp_E2, C8);
   result_E2 = temp_E2;
 
   temp_E2 = sin_omyt;
-  mul_pseudo(temp_E2, temp_E2, C7);
+  mul_float(temp_E2, temp_E2, C7);
 
-  add_pseudo(result_E2, result_E2, temp_E2);
+  add_float(result_E2, result_E2, temp_E2);
   //return C8 * cos(omy * t) + C7 * sin(omy * t);
 }
 
 inline check_safety(isSafe, x1, x2, y1, y2, protectedzone) {
   int x1y1; 
-  sub_pseudo(x1y1, x1, y1);
-  mul_pseudo(x1y1, x1y1, x1y1); //:)
+  sub_float(x1y1, x1, y1);
+  mul_float(x1y1, x1y1, x1y1); //:)
   int x2y2;
-  sub_pseudo(x2y2, x2, y2);
-  mul_pseudo(x2y2, x2y2, x2y2); //:)
-  add_pseudo(x1y1, x1y1, x2y2);
+  sub_float(x2y2, x2, y2);
+  mul_float(x2y2, x2y2, x2y2); //:)
+  add_float(x1y1, x1y1, x2y2);
 
-  mul_pseudo(x2y2, protectedzone, protectedzone);
+  mul_float(x2y2, protectedzone, protectedzone);
 
   if ::(x1y1 >= x2y2) -> isSafe = 1; 
      ::else -> isSafe = 0;
@@ -688,22 +691,22 @@ inline MODEL() {
 
   // time
   int t = 0;
-  int t_max; pseudo_from_int(t_max, 1, 0);// t_max = 1
-  int dt; pseudo_from_int(dt, 1, 2);    //dt = 0.01
+  int t_max; float_from_int(t_max, 1, 0);// t_max = 1
+  int dt; float_from_int(dt, 1, 2);    //dt = 0.01
   
   // diff eq constants
-  int c1; pseudo_from_int(c1, -15, 1);  //= -1.5
-  int c2; pseudo_from_int(c1, -2, 1);   //= -0.2
-  int c3; pseudo_from_int(c3, -101, 1); //= -10.1 
-  int c4; pseudo_from_int(c4, 1, 1);    //= 0.1
-  int c5; pseudo_from_int(c5, 15, 1);   //= 1.5, 
+  int c1; float_from_int(c1, -15, 1);  //= -1.5
+  int c2; float_from_int(c1, -2, 1);   //= -0.2
+  int c3; float_from_int(c3, -101, 1); //= -10.1 
+  int c4; float_from_int(c4, 1, 1);    //= 0.1
+  int c5; float_from_int(c5, 15, 1);   //= 1.5, 
   int c6; c6 = c4;   //= 0.1
   int c7; c7 = c4;   //= 0.1
-  int c8; pseudo_from_int(c8, 8, 0);   //c8 = 8;
+  int c8; float_from_int(c8, 8, 0);   //c8 = 8;
 
   // ommm
-  int om; pseudo_from_int(om, 1, 0);    // = 1 
-  int omy; omy = om;//pseudo_from_int(omy, 1, 0);// = 1 
+  int om; float_from_int(om, 1, 0);    // = 1 
+  int omy; omy = om;//float_from_int(omy, 1, 0);// = 1 
 
   int x1 = c1;
   int x2 = c2;
@@ -711,13 +714,13 @@ inline MODEL() {
   int y2 = c6;
 
   // d, e
-  int d1; pseudo_from_int(d1, 5, 1);    // = 0.5 
-  int d2; pseudo_from_int(d1, 105, 4);  // = 0.0105
+  int d1; float_from_int(d1, 5, 1);    // = 0.5 
+  int d2; float_from_int(d1, 105, 4);  // = 0.0105
   int e1 = 0;
   int e2 = 0;
 
 
-  int pz; pseudo_from_int(pz, 1, 1);  //protectedzone = 0.1
+  int pz; float_from_int(pz, 1, 1);  //protectedzone = 0.1
   int safe = 1;
   check_safety(safe, x1, x2, y1, y2, pz);
 
@@ -726,7 +729,7 @@ inline MODEL() {
       int e1_old = e1;
       int e2_old = e2;
       int omt, cos_omt_, sin_omt_;
-      mul_pseudo(omt, om, t); //om * t
+      mul_float(omt, om, t); //om * t
       cosinus(cos_omt_, omt); //cos(om * t)
       sinus(sin_omt_, omt);   //sin(om * t)
 
@@ -748,22 +751,22 @@ inline MODEL() {
 
       printf("\n-----------------------------\n");
       printf("t = "); 
-      print_pseudo_representation(t);
+      print_float_representation(t);
       printf("\n X1 = ");
-      print_pseudo_representation(x1);
+      print_float_representation(x1);
       printf("\n X2 = ");
-      print_pseudo_representation(x2);
+      print_float_representation(x2);
       printf("\n Y1 = ");
-      print_pseudo_representation(y1);
+      print_float_representation(y1);
       printf("\n Y2 = ");
-      print_pseudo_representation(y2);
+      print_float_representation(y2);
 
       
       
 
 
 
-      add_pseudo(t, t, dt);
+      add_float(t, t, dt);
     } ::else -> break;
     od
   } else -> skip;
@@ -779,30 +782,30 @@ active proctype main() {
 int one = 1086324736;
 int two = 1112539136;
 
-pseudo_from_int(one, 20, 0);
-pseudo_from_int(two, 35, 1);
-//div_pseudo(three, one, two);
-print_pseudo_representation(one);
-print_pseudo_representation(two);
+float_from_int(one, 20, 0);
+float_from_int(two, 35, 1);
+//div_float(three, one, two);
+print_float_representation(one);
+print_float_representation(two);
 
 
 byte signsign = 0;
 
-//sub_two_pseudo(three, one, two, signsign);
-//add_two_pseudo(three, one, two, signsign);
+//sub_two_float(three, one, two, signsign);
+//add_two_float(three, one, two, signsign);
 
-//add_pseudo(three, one, two);
-//sub_pseudo(three, one, two);
-//mul_pseudo(three, one, two);
+//add_float(three, one, two);
+//sub_float(three, one, two);
+//mul_float(three, one, two);
 
-//int pi; pseudo_from_int(pi, 3141592/3, 6);
+//int pi; float_from_int(pi, 3141592/3, 6);
 
 //sinus(three, pi);
 //cosinus(three, one);
 
 MODEL();
 
-//print_pseudo_representation(three);
+//print_float_representation(three);
 
 
 
