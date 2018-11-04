@@ -8,8 +8,8 @@
 
 
 #define EXP_BIAS 128
-#define MAX_NUMBER  4194304 // 2^23
-//#define MAX_NUMBER (8388608/2)  // 2^23
+#define MAX_NUMBER  4194304 // 2^22
+//#define MAX_NUMBER 8388608  // 2^23
 #define MANTISSA_BITS 22
 //#define MANTISSA_BITS 23
 #define EXP_SIZE 8
@@ -131,6 +131,7 @@ inline add_two_float(result_add_two, first_add_two_pass,  second_add_two_pass, s
   exp_first_add_two = exp_first_add_two & EXP_MASK;
   exp_second_add_two = exp_second_add_two & EXP_MASK;
 
+
   if ::(exp_first_add_two - exp_second_add_two >= 32) -> {
     // first number too mush bigger than next one
     result_add_two = first_add_two | (sign_add_two >> (MANTISSA_BITS + EXP_SIZE));
@@ -191,23 +192,31 @@ inline add_float(result_add, first_add_pass, second_add_pass) {
   byte sign_first_add = first_add >> (MANTISSA_BITS + EXP_SIZE);
   byte sign_second_add = second_add >> (MANTISSA_BITS + EXP_SIZE);
   result_add = 0;
-  if ::(sign_first_add == 0 && sign_second_add == 0) -> { // A+B 
-     add_two_float(result_add, first_add, second_add, 0)
-  }
-  ::else ->
-    if ::(sign_first_add == 1 && sign_second_add == 1) -> {  //-A-B=>-(A+B)
-       add_two_float(result_add, first_add, second_add, 1);
-    } ::else ->
-      if ::(sign_first_add == 0 && sign_second_add == 1) -> {  // A-B
-        sub_two_float(result_add, first_add, second_add, 0);
-      } ::else ->
-        if ::(sign_first_add == 1 && sign_second_add == 0) -> {  // -A+B
-           sub_two_float(result_add, second_add, first_add, 0);
-        }
+
+  if ::(first_add == 0) -> result_add = second_add; 
+    ::else -> 
+    if ::(second_add == 0) -> result_add = first_add;
+      :: else -> {
+      if ::(sign_first_add == 0 && sign_second_add == 0) -> { // A+B 
+        add_two_float(result_add, first_add, second_add, 0)
+      }
+      ::else ->
+        if ::(sign_first_add == 1 && sign_second_add == 1) -> {  //-A-B=>-(A+B)
+          add_two_float(result_add, first_add, second_add, 1);
+        } ::else ->
+          if ::(sign_first_add == 0 && sign_second_add == 1) -> {  // A-B
+            sub_two_float(result_add, first_add, second_add, 0);
+          } ::else ->
+            if ::(sign_first_add == 1 && sign_second_add == 0) -> {  // -A+B
+              sub_two_float(result_add, second_add, first_add, 0);
+            }
+            fi
+          fi
         fi
       fi
-    fi
+      }
    fi
+  fi
 }
 
 //-----------------------------------------------------------------
@@ -254,130 +263,135 @@ inline div_float(result_div, first_div_pass, second_div_pass) {
 
   if ::(first_div == 0 && second_div == 0) -> 
     result_div = -1;  // nan = (0xfffff...)
-  ::else -> if ::(second_div == 0) -> {
-    if ::(first_div > 0) -> 
-      result_div = (128 << MANTISSA_BITS);  //0x80, +inf
-       ::else ->
-      result_div = (255 << MANTISSA_BITS);  //0xff, -inf
-    fi
-  } ::else -> {
-    //normal div
-  do ::((reminder > 0) && (exponent_reminder >= 142)) -> {//?
-    int exp_first = first_div >> MANTISSA_BITS,
-        exp_second = second_div >> MANTISSA_BITS;
-    first_div = first_div & MASK;
-    second_div = second_div & MASK;
-    exp_first = exp_first & EXP_MASK;  // clear the sign
-    exp_second = exp_second & EXP_MASK;
-    new_exponent = MANTISSA_BITS + ((exp_first - exp_second) + EXP_BIAS);
-    int ee_div = 0;
-    if ::(first_div > 0) -> {
-      do ::(first_div < MAX_NUMBER_FIT) -> {
-        first_div = first_div << 1;
-        ee_div = ee_div + 1;
+  ::else ->
+    if ::(first_div == 0 && second_div != 0) -> 
+      result_div = 0;  // 0 / x = 0
+    ::else ->
+    if ::(second_div == 0) -> {
+      if ::(first_div > 0) -> 
+        result_div = (128 << MANTISSA_BITS);  //0x80, +inf
+        ::else ->
+        result_div = (255 << MANTISSA_BITS);  //0xff, -inf
+      fi
+    } ::else -> {
+      //normal div
+    do ::((reminder > 0) && (exponent_reminder >= 142)) -> {//?
+      int exp_first = first_div >> MANTISSA_BITS,
+          exp_second = second_div >> MANTISSA_BITS;
+      first_div = first_div & MASK;
+      second_div = second_div & MASK;
+      exp_first = exp_first & EXP_MASK;  // clear the sign
+      exp_second = exp_second & EXP_MASK;
+      new_exponent = MANTISSA_BITS + ((exp_first - exp_second) + EXP_BIAS);
+      int ee_div = 0;
+      if ::(first_div > 0) -> {
+        do ::(first_div < MAX_NUMBER_FIT) -> {
+          first_div = first_div << 1;
+          ee_div = ee_div + 1;
+        } ::else -> break;
+        od
+      }
+      ::else -> {
+        result_div = we_return;
+        break;
+      } 
+      fi
+
+      new_exponent = new_exponent - ee_div;
+
+      if ::(second_div > 0) -> { 
+        do ::((second_div % 2) == 0) -> {
+          second_div = second_div >>  1;
+          new_exponent = new_exponent - 1;
+          }  // hack: уменьшаем делимое
+          ::else -> break;
+        od 
+        }
+        ::else -> skip;
+      fi
+
+      int div_result = 0;
+      div_result = first_div / second_div;
+
+      //printf("%d / %d res=%d\n",first_div, second_div, div_result);
+      reminder = first_div - second_div * div_result;
+
+      reminder = 0;
+      do ::(div_result >= MAX_NUMBER) -> {
+        div_result =  div_result >> 1;
+        new_exponent = new_exponent + 1;
       } ::else -> break;
       od
-    }
-    ::else -> {
-      result_div = we_return;
-      break;
-    } 
-    fi
+      int curr_exp = 0;
+      int rem_div_number1 = 0, rem_div_number2 = 0;
 
-    new_exponent = new_exponent - ee_div;
+      exponent_reminder = new_exponent;
+      // check the reminder and create a number1/number2 solution
+      if ::(reminder > 0) -> {
+        rem_div_number1 = reminder;
+        curr_exp = new_exponent;
+        do ::(rem_div_number1 >= MAX_NUMBER) -> {
+          rem_div_number1 = rem_div_number1 >> 1;
+          curr_exp = curr_exp + 1;
+        } ::else -> break;
+        od
+        do ::(rem_div_number1 < MAX_NUMBER / 2) -> {
+          rem_div_number1 = rem_div_number1 << 1;
+          curr_exp = curr_exp - 1;
+        } ::else -> break;
+        od
 
-    if ::(second_div > 0) -> { 
-      do ::((second_div % 2) == 0) -> {
-        second_div = second_div >>  1;
-        new_exponent = new_exponent - 1;
-        }  // hack: уменьшаем делимое
-        ::else -> break;
-      od 
-      }
-      ::else -> skip;
-    fi
+        rem_div_number1 = rem_div_number1 | (curr_exp << MANTISSA_BITS);
 
-    int div_result = 0;
-    div_result = first_div / second_div;
+        rem_div_number2 = second_div;
+        curr_exp = EXP_BIAS + MANTISSA_BITS;
+        do ::(rem_div_number2 < MAX_NUMBER / 2) -> {
+          rem_div_number2 = rem_div_number2 << 1;
+          curr_exp = curr_exp - 1;
+        } ::else -> break;
+        od
+        rem_div_number2 = rem_div_number2 | (curr_exp << MANTISSA_BITS);
+      }::else -> skip;
+      fi
 
-    printf("%d / %d res=%d\n",first_div, second_div, div_result);
-    reminder = first_div - second_div * div_result;
+      first_div = div_result;
 
-    reminder = 0;
-    do ::(div_result >= MAX_NUMBER) -> {
-      div_result =  div_result >> 1;
-      new_exponent = new_exponent + 1;
+      if ::(first_div > 0) -> {
+        do ::(first_div < MAX_NUMBER / 2) -> 
+        {
+          first_div = first_div << 1;
+          new_exponent = new_exponent - 1;
+        } ::else -> break;
+        od
+      } ::else -> skip;
+      fi
+
+      if ::(first_div == MAX_NUMBER) -> {
+        first_div = first_div >> 1;
+        new_exponent = new_exponent + 1;
+      } ::else -> skip;
+      fi
+
+      byte sign = (sign_first_div + sign_second_div) % 2;
+      //fixOverflow(&first, &new_exponent);
+      new_exponent = (sign << EXP_SIZE) + new_exponent;
+      first_div = first_div | (new_exponent << MANTISSA_BITS);
+      add_float(we_return, we_return, first_div);
+      //we_return = first_div;
+      if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
+          (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
+        break;
+      :: else -> skip;
+      fi
+      first_div = rem_div_number1;
+      second_div = rem_div_number2;
+      // continue to divide, get the reminder and add it to the result
     } ::else -> break;
     od
-    int curr_exp = 0;
-    int rem_div_number1 = 0, rem_div_number2 = 0;
 
-    exponent_reminder = new_exponent;
-    // check the reminder and create a number1/number2 solution
-    if ::(reminder > 0) -> {
-      rem_div_number1 = reminder;
-      curr_exp = new_exponent;
-      do ::(rem_div_number1 >= MAX_NUMBER) -> {
-        rem_div_number1 = rem_div_number1 >> 1;
-        curr_exp = curr_exp + 1;
-      } ::else -> break;
-      od
-      do ::(rem_div_number1 < MAX_NUMBER / 2) -> {
-        rem_div_number1 = rem_div_number1 << 1;
-        curr_exp = curr_exp - 1;
-      } ::else -> break;
-      od
-
-      rem_div_number1 = rem_div_number1 | (curr_exp << MANTISSA_BITS);
-
-      rem_div_number2 = second_div;
-      curr_exp = EXP_BIAS + MANTISSA_BITS;
-      do ::(rem_div_number2 < MAX_NUMBER / 2) -> {
-        rem_div_number2 = rem_div_number2 << 1;
-        curr_exp = curr_exp - 1;
-      } ::else -> break;
-      od
-      rem_div_number2 = rem_div_number2 | (curr_exp << MANTISSA_BITS);
-    }::else -> skip;
+    result_div = we_return;
+    }
     fi
-
-    first_div = div_result;
-
-    if ::(first_div > 0) -> {
-      do ::(first_div < MAX_NUMBER / 2) -> 
-      {
-        first_div = first_div << 1;
-        new_exponent = new_exponent - 1;
-      } ::else -> break;
-      od
-    } ::else -> skip;
-    fi
-
-    if ::(first_div == MAX_NUMBER) -> {
-      first_div = first_div >> 1;
-      new_exponent = new_exponent + 1;
-    } ::else -> skip;
-    fi
-
-    byte sign = (sign_first_div + sign_second_div) % 2;
-    //fixOverflow(&first, &new_exponent);
-    new_exponent = (sign << EXP_SIZE) + new_exponent;
-    first_div = first_div | (new_exponent << MANTISSA_BITS);
-    add_float(we_return, we_return, first_div);
-    //we_return = first_div;
-    if ::((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
-        (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1))) ->
-      break;
-    :: else -> skip;
-    fi
-    first_div = rem_div_number1;
-    second_div = rem_div_number2;
-    // continue to divide, get the reminder and add it to the result
-  } ::else -> break;
-  od
-
-  result_div = we_return;
-  }
   fi
 fi
 
@@ -387,19 +401,23 @@ fi
 inline mul_float(mul_result, a_mul_pass, b_mul_pass) {
   int a_mul = a_mul_pass; //create copies
   int b_mul = b_mul_pass; 
-  int ea_mul = a_mul >> MANTISSA_BITS, eb_mul = b_mul >> MANTISSA_BITS;
-  byte signA_mul = a_mul >> (MANTISSA_BITS + EXP_SIZE);
-  byte signB_mul = b_mul >> (MANTISSA_BITS + EXP_SIZE);
-  ea_mul = ea_mul & EXP_MASK;  // clear the sign
-  eb_mul = eb_mul & EXP_MASK;
-  int e_mul = ea_mul + eb_mul - EXP_BIAS;
-  a_mul = a_mul & MASK;
-  b_mul = b_mul & MASK;
-  int p_mul = ((a_mul >> 8) * (b_mul >> 8)) >> (MANTISSA_BITS - 16);  // or we overflow it
-  byte sign_mul = (signA_mul + signB_mul) % 2;
-  //fixOverflow(&p, &e);
-  e_mul = (sign_mul << EXP_SIZE) + e_mul;
-  mul_result =  p_mul | (e_mul << MANTISSA_BITS);
+  if ::(a_mul == 0 || b_mul == 0) -> mul_result = 0;
+    ::else -> {
+      int ea_mul = a_mul >> MANTISSA_BITS, eb_mul = b_mul >> MANTISSA_BITS;
+      byte signA_mul = a_mul >> (MANTISSA_BITS + EXP_SIZE);
+      byte signB_mul = b_mul >> (MANTISSA_BITS + EXP_SIZE);
+      ea_mul = ea_mul & EXP_MASK;  // clear the sign
+      eb_mul = eb_mul & EXP_MASK;
+      int e_mul = ea_mul + eb_mul - EXP_BIAS;
+      a_mul = a_mul & MASK;
+      b_mul = b_mul & MASK;
+      int p_mul = ((a_mul >> 8) * (b_mul >> 8)) >> (MANTISSA_BITS - 16);  // or we overflow it
+      byte sign_mul = (signA_mul + signB_mul) % 2;
+      //fixOverflow(&p, &e);
+      e_mul = (sign_mul << EXP_SIZE) + e_mul;
+      mul_result =  p_mul | (e_mul << MANTISSA_BITS);
+    }
+  fi
 }
 
 //-----------------------------------------------------------------
@@ -498,8 +516,6 @@ inline sinus(result_sinus, x) {
   int xx = 0; 
   mul_float(xx, x, x);
   sub_float(xx, 0, xx);
-  
-  //result_sinus = xx;
 
   /// sinx = x - x^3/3! + x^5/5! ...
   int abs_seq_n = 0;
@@ -513,10 +529,10 @@ inline sinus(result_sinus, x) {
     mul_float(fact, fact, fac_part_new);
 
     mul_float(pow, xx, pow);
-    printf("div->"); 
-    print_float_representation(pow);
-    printf("/"); 
-    print_float_representation(fact);
+    //printf("div->"); 
+    //print_float_representation(pow);
+    //printf("/"); 
+    //print_float_representation(fact);
 
     div_float(seq_n, pow, fact);
     
@@ -729,18 +745,48 @@ inline MODEL() {
       int e1_old = e1;
       int e2_old = e2;
       int omt, cos_omt_, sin_omt_;
+
       mul_float(omt, om, t); //om * t
+
       cosinus(cos_omt_, omt); //cos(om * t)
+
+
       sinus(sin_omt_, omt);   //sin(om * t)
 
+      //printf("...X1 \n "); 
+
       X1(x1, cos_omt_, sin_omt_, om, c1, c3, c4);
+
+            //printf("...X2 \n "); 
+
       X2(x2, cos_omt_, sin_omt_, om, c2, c3, c4);
+
+            //printf("...Y1 \n "); 
+
       Y1(y1, t, e1_old, c5);
+
+            //printf("...Y2 \n "); 
+
       Y2(y2, t, e2_old, c6);
+
+            //printf("...D1 \n "); 
+
       D1(d1, cos_omt_, sin_omt_, c3, c4);
+
+            //printf("...D2 \n "); 
+
       D2(d2, cos_omt_, sin_omt_, c3, c4);
+
+            //printf("...E1 \n "); 
+
       E1(e1, cos_omt_, sin_omt_, c7, c8);
+
+            //printf("...E2 \n "); 
+
       E2(e2, cos_omt_, sin_omt_, c7, c8);
+
+            //printf("...check \n "); 
+
       
       check_safety(safe, x1, x2, y1, y2, pz);
 
@@ -800,8 +846,9 @@ byte signsign = 0;
 
 //int pi; float_from_int(pi, 3141592/3, 6);
 
+//int pi  = 4194304;
 //sinus(three, pi);
-//cosinus(three, one);
+//cosinus(three, pi);
 
 MODEL();
 
