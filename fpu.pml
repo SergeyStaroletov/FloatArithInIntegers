@@ -1,7 +1,7 @@
 
 /*
 @brief Floating point calculations implementation in Promela
-@author Sergey Staroletov serg_soft@mail.ru
+@author Sergey Staroletov serg_soft@mail.ru https://www.researchgate.net/profile/Sergey_Staroletov
 @license GNU GPL
 */
 
@@ -15,9 +15,9 @@
 #define EXP_SIZE 8
 #define EXP_MASK 255
 #define MASK (MAX_NUMBER - 1)
-#define MAX_NUMBER_FIT (1073741824/2)  // 2^32 - sign bit, /2 for promela
+#define MAX_NUMBER_FIT (1073741824/2)  // 2^32 - sign bit, /2 for promela because of signed int
 
-int three = 1112539136;
+bit safe = 1; //for global safety check
 
 //-----------------------------------------------------------------
 inline print_float_representation(float_num) { 
@@ -38,7 +38,8 @@ inline print_float_representation(float_num) {
   od
   fi
   e_rep = e_rep - MANTISSA_BITS;
-  printf("%d*2^%d\n", f_mask, e_rep); //useful for inserting to google and watch the numerical result
+  printf("%d*2^%d\n", f_mask, e_rep); 
+  //result now is useful for inserting to google and watching the numerical result
 }
 
 
@@ -121,8 +122,8 @@ inline sub_two_float(result_sub_two, first_sub_two_pass, second_sub_two_pass, si
     fi
   fi
 }
-//-----------------------------------------------------------------
 
+//-----------------------------------------------------------------
 inline add_two_float(result_add_two, first_add_two_pass,  second_add_two_pass, sign_add_two) {
   int first_add_two = first_add_two_pass;
   int second_add_two = second_add_two_pass;
@@ -259,7 +260,6 @@ inline div_float(result_div, first_div_pass, second_div_pass) {
   byte sign_second_div = second_div >> (MANTISSA_BITS + EXP_SIZE);
 
   result_div = 0;
-
 
   if ::(first_div == 0 && second_div == 0) -> 
     result_div = -1;  // nan = (0xfffff...)
@@ -422,8 +422,8 @@ inline mul_float(mul_result, a_mul_pass, b_mul_pass) {
 
 //-----------------------------------------------------------------
 inline float_from_int(result, xx, rate_of_minus10) {
-int first_n = 1086324736;//test
-int second_n = 1112539136;
+  int first_n = 1086324736;//test
+  int second_n = 1112539136;
   
   int x = xx;  
   int pow_of_10 = 1;
@@ -521,28 +521,16 @@ inline sinus(result_sinus, x) {
   int abs_seq_n = 0;
   abs_float(abs_seq_n, seq_n);
   do ::((abs_seq_n > p00000001) && i_sin < 2) -> {
-    
-    
     int fac_part_new;
     float_from_int(fac_part_new, ((2 * i_sin) * (2 * i_sin + 1)), 0);
-    
     mul_float(fact, fact, fac_part_new);
-
     mul_float(pow, xx, pow);
-    //printf("div->"); 
-    //print_float_representation(pow);
-    //printf("/"); 
-    //print_float_representation(fact);
-
     div_float(seq_n, pow, fact);
-    
     add_float(current_sin, current_sin, seq_n);
-    
     i_sin++;
   } 
   ::else -> break;
   od
-  
   result_sinus = current_sin;
 }
 
@@ -701,8 +689,8 @@ inline check_safety(isSafe, x1, x2, y1, y2, protectedzone) {
 }
 
 
-bit OK = 1;//to check it
 
+//-----------------------------------------------------------------
 inline MODEL() {
 
   // time
@@ -735,9 +723,8 @@ inline MODEL() {
   int e1 = 0;
   int e2 = 0;
 
-
-  int pz; float_from_int(pz, 1, 1);  //protectedzone = 0.1
-  int safe = 1;
+  int pz; float_from_int(pz, 1, 0);  //protectedzone = 1
+  safe = 1;
   check_safety(safe, x1, x2, y1, y2, pz);
 
   if ::(safe) -> {
@@ -747,51 +734,31 @@ inline MODEL() {
       int omt, cos_omt_, sin_omt_;
 
       mul_float(omt, om, t); //om * t
-
       cosinus(cos_omt_, omt); //cos(om * t)
-
-
       sinus(sin_omt_, omt);   //sin(om * t)
 
-      //printf("...X1 \n "); 
-
+            //printf("...X1 \n "); 
       X1(x1, cos_omt_, sin_omt_, om, c1, c3, c4);
-
             //printf("...X2 \n "); 
-
       X2(x2, cos_omt_, sin_omt_, om, c2, c3, c4);
-
             //printf("...Y1 \n "); 
-
       Y1(y1, t, e1_old, c5);
-
             //printf("...Y2 \n "); 
-
       Y2(y2, t, e2_old, c6);
-
             //printf("...D1 \n "); 
-
       D1(d1, cos_omt_, sin_omt_, c3, c4);
-
             //printf("...D2 \n "); 
-
       D2(d2, cos_omt_, sin_omt_, c3, c4);
-
             //printf("...E1 \n "); 
-
       E1(e1, cos_omt_, sin_omt_, c7, c8);
-
             //printf("...E2 \n "); 
-
       E2(e2, cos_omt_, sin_omt_, c7, c8);
-
             //printf("...check \n "); 
-
-      
+    
       check_safety(safe, x1, x2, y1, y2, pz);
 
       if ::(safe == 0) -> {
-        printf("Safety check violtion!");
+        printf("Safety check violtion!/n");
       } ::else -> skip;
       fi
 
@@ -807,53 +774,42 @@ inline MODEL() {
       printf("\n Y2 = ");
       print_float_representation(y2);
 
-      
-      
-
-
-
-      add_float(t, t, dt);
+      add_float(t, t, dt); //t = t + dt
     } ::else -> break;
     od
   } else -> skip;
   fi
+}
 
+//-----------------------------------------------------------------
+inline TESTS() {
+  int one = 1086324736;
+  int two = 1112539136;
+  int three = 1112539136;
+  printf("A = "); float_from_int(one, 20, 0); print_float_representation(one); //20
+  printf("B = "); float_from_int(two, 35, 1); print_float_representation(two); //3.5
+  div_float(three, one, two);
+  printf("A/B = "); print_float_representation(three);
 
+  //add_float(three, one, two);
+  //sub_float(three, one, two);
+  //mul_float(three, one, two);
+
+  int pi; float_from_int(pi, 3141592/3, 6); //pi/3
+  printf("pi/3 = "); print_float_representation(pi);
+  sinus(three, pi);
+  printf("sin(pi/3) = "); print_float_representation(three);
+  cosinus(three, pi);
+  printf("cos(pi/3) = "); print_float_representation(three);
 }
 
 
 //-----------------------------------------------------------------
 active proctype main() {
 
-int one = 1086324736;
-int two = 1112539136;
-
-float_from_int(one, 20, 0);
-float_from_int(two, 35, 1);
-//div_float(three, one, two);
-print_float_representation(one);
-print_float_representation(two);
-
-
-byte signsign = 0;
-
-//sub_two_float(three, one, two, signsign);
-//add_two_float(three, one, two, signsign);
-
-//add_float(three, one, two);
-//sub_float(three, one, two);
-//mul_float(three, one, two);
-
-//int pi; float_from_int(pi, 3141592/3, 6);
-
-//int pi  = 4194304;
-//sinus(three, pi);
-//cosinus(three, pi);
-
-MODEL();
-
-//print_float_representation(three);
-
-
+  //TESTS();  //run some tests
+  MODEL();  //run model
 
 }
+
+ltl check_me { [] (safe == 1)}
