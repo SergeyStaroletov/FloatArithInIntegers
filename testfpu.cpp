@@ -6,8 +6,10 @@
 
 #include "testfpu.h"
 
+#define EPS 0.126
+
 void TestFPU::testMul() {
-  QSKIP("after");
+  // QSKIP("skipping, comment me to run this test");
 
   printf("testing mul...\n");
 
@@ -18,21 +20,22 @@ void TestFPU::testMul() {
     if (rand() % 2 == 0) a = -a;
     if (rand() % 2 == 0) b = -b;
 
-    float c = a * b;
+    float c_real = a * b;
 
-    pseudofloat cc = (mul_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat c_our = (mulFloat(realDouble2Float(a), realDouble2Float(b)));
 
-    float c1 = pseudo2double(cc);
+    float c_our_float = float2RealDouble(c_our);
 
-    print_pseudo_as_float("a=", double2pseudo(a));
-    print_pseudo_as_float("b=", double2pseudo(b));
+    printFloatAsFloat("a=", realDouble2Float(a));
+    printFloatAsFloat("b=", realDouble2Float(b));
 
-    print_pseudo_as_float("our result", cc);
-    double diff = fabs(c - c1);
-    print_pseudo_as_float("diff=", double2pseudo(diff));
-    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
-    print_pseudo_as_float("etalon", double2pseudo(c));
-    if (diff < 0.126 || isnan(diff))
+    printFloatAsFloat("our result", c_our);
+    double diff = fabs(c_real - c_our_float);
+    printFloatAsFloat("diff=", realDouble2Float(diff));
+    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c_real,
+           c_our_float, diff);
+    printFloatAsFloat("etalon", realDouble2Float(c_real));
+    if (diff < EPS || isnan(diff))
       printf("passed!\n");
     else {
       printf("FAILED!\n");
@@ -45,7 +48,7 @@ void TestFPU::testMul() {
 }
 
 void TestFPU::testDiv() {
-  QSKIP("after");
+  QSKIP("skipping, comment me to run this test");
 
   printf("testing div...\n");
 
@@ -56,28 +59,29 @@ void TestFPU::testDiv() {
     if (rand() % 2 == 0) a = -a;
     if (rand() % 2 == 0) b = -b;
 
-    float c = a / b;
+    float c_real = a / b;
 
-    pseudofloat cc = (div_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat c_our = (divFloat(realDouble2Float(a), realDouble2Float(b)));
 
-    float c1 = pseudo2double(cc);
+    float c_our_float = float2RealDouble(c_our);
 
-    print_pseudo_as_float("a=", double2pseudo(a));
-    print_pseudo_as_float("b=", double2pseudo(b));
+    printFloatAsFloat("a=", realDouble2Float(a));
+    printFloatAsFloat("b=", realDouble2Float(b));
 
-    print_pseudo_as_float("our result", cc);
-    double diff = fabs(c - c1);
-    print_pseudo_as_float("diff=", double2pseudo(diff));
-    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
-    print_pseudo_as_float("etalon", double2pseudo(c));
-    if (diff < 0.126 || isnan(diff))
+    printFloatAsFloat("our result", c_our);
+    double diff = fabs(c_real - c_our_float);
+    printFloatAsFloat("diff=", realDouble2Float(diff));
+    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c_real,
+           c_our_float, diff);
+    printFloatAsFloat("etalon", realDouble2Float(c_real));
+    if (diff < EPS || isnan(diff))
       printf("passed!\n");
     else {
       printf("FAILED!\n");
       fail++;
     }
 
-    QVERIFY(diff < 0.126 || isnan(diff));
+    QVERIFY(diff < EPS || isnan(diff));
   }
   printf("%d divs failed\n", fail);
 
@@ -85,7 +89,7 @@ void TestFPU::testDiv() {
 }
 
 void TestFPU::testAdd() {
-  QSKIP("after");
+  // QSKIP("skipping, comment me to run this test");
 
   printf("testing add...\n");
 
@@ -99,20 +103,21 @@ void TestFPU::testAdd() {
     if (a == 0 && b == 0) continue;      //!!
     if (isinf(a) || isinf(b)) continue;  //!!
 
-    float c = a + b;
+    float c_real = a + b;
 
-    pseudofloat cc = (add_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat c_our = (addFloat(realDouble2Float(a), realDouble2Float(b)));
 
-    float c1 = pseudo2double(cc);
+    float c_our_float = float2RealDouble(c_our);
 
-    print_pseudo_as_float("a=", double2pseudo(a));
-    print_pseudo_as_float("b=", double2pseudo(b));
+    printFloatAsFloat("a=", realDouble2Float(a));
+    printFloatAsFloat("b=", realDouble2Float(b));
 
-    print_pseudo_as_float("our result", cc);
-    double diff = fabs(c - c1);
-    print_pseudo_as_float("diff=", double2pseudo(diff));
-    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
-    print_pseudo_as_float("etalon", double2pseudo(c));
+    printFloatAsFloat("our result", c_our);
+    double diff = fabs(c_real - c_our_float);
+    printFloatAsFloat("diff=", realDouble2Float(diff));
+    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c_real,
+           c_our_float, diff);
+    printFloatAsFloat("etalon", realDouble2Float(c_real));
     if (diff < 0.01 || isnan(diff))
       printf("passed!\n");
     else {
@@ -120,7 +125,7 @@ void TestFPU::testAdd() {
       fail++;
     }
 
-    QVERIFY(diff < 0.126 || isnan(diff));
+    QVERIFY(diff < EPS || isnan(diff));
   }
   printf("%d adds failed\n", fail);
 
@@ -128,7 +133,7 @@ void TestFPU::testAdd() {
 }
 
 void TestFPU::testSub() {
-  QSKIP("after");
+  // QSKIP("skipping, comment me to run this test");
 
   printf("testing sub...\n");
 
@@ -141,28 +146,29 @@ void TestFPU::testSub() {
 
     if (a == 0 && b == 0) continue;      //!!
     if (isinf(a) || isinf(b)) continue;  //!!
-    float c = a - b;
+    float c_real = a - b;
 
-    pseudofloat cc = (sub_pseudo(double2pseudo(a), double2pseudo(b)));
+    pseudofloat c_our = (subFloat(realDouble2Float(a), realDouble2Float(b)));
 
-    float c1 = pseudo2double(cc);
+    float c_our_real = float2RealDouble(c_our);
 
-    print_pseudo_as_float("a=", double2pseudo(a));
-    print_pseudo_as_float("b=", double2pseudo(b));
+    printFloatAsFloat("a=", realDouble2Float(a));
+    printFloatAsFloat("b=", realDouble2Float(b));
 
-    print_pseudo_as_float("our result", cc);
-    double diff = fabs(c - c1);
-    print_pseudo_as_float("diff=", double2pseudo(diff));
-    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c, c1, diff);
-    print_pseudo_as_float("etalon", double2pseudo(c));
-    if (diff < 0.126 || isnan(diff))
+    printFloatAsFloat("our result", c_our);
+    double diff = fabs(c_real - c_our_real);
+    printFloatAsFloat("diff=", realDouble2Float(diff));
+    printf("testing %f / %f = %e vs %e -> diff=%f....", a, b, c_real,
+           c_our_real, diff);
+    printFloatAsFloat("etalon", realDouble2Float(c_real));
+    if (diff < EPS || isnan(diff))
       printf("passed!\n");
     else {
       printf("FAILED!\n");
       fail++;
     }
 
-    QVERIFY(diff < 0.126 || isnan(diff));
+    QVERIFY(diff < EPS || isnan(diff));
   }
   printf("%d subs failed\n", fail);
 
@@ -170,12 +176,12 @@ void TestFPU::testSub() {
 }
 
 void TestFPU::testSin() {
-  QSKIP("after");
+  // QSKIP("skipping, comment me to run this test");
 
   for (float x = -3.1415; x <= 3.1415; x += 0.01) {
     printf("TEST x = %f\n", x);
 
-    float actual = pseudo2double(sinus(double2pseudo(x)));
+    float actual = float2RealDouble(sinus(realDouble2Float(x)));
     float etalon = sin(x);
 
     float diff = fabs(actual - etalon);
@@ -187,12 +193,12 @@ void TestFPU::testSin() {
 }
 
 void TestFPU::testCos() {
-  // QSKIP("after");
+  // QSKIP("skipping, comment me to run this test");
 
   for (float x = -3.1415; x <= 3.1415; x += 0.01) {
     printf("TEST x = %f\n", x);
 
-    float actual = pseudo2double(cosinus(double2pseudo(x)));
+    float actual = float2RealDouble(cosinus(realDouble2Float(x)));
     float etalon = cos(x);
 
     float diff = fabs(actual - etalon);

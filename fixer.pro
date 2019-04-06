@@ -1,6 +1,8 @@
 QT -= gui
 QT += testlib
 
+QMAKE_MAC_SDK = macosx10.14
+
 #CONFIG += c++11 console
 #CONFIG -= app_bundle
 

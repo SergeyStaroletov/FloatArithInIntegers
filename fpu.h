@@ -12,27 +12,27 @@ typedef unsigned int pseudofloat;
 
 void fixOverflow(pseudofloat *mantissa, int *exp);
 
-pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign);
+pseudofloat subTwoFloat(pseudofloat first, pseudofloat second, char sign);
 
-pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign);
+pseudofloat addTwoFloat(pseudofloat first, pseudofloat second, char sign);
 
-pseudofloat add_pseudo(pseudofloat first, pseudofloat second);
+pseudofloat addFloat(pseudofloat first, pseudofloat second);
 
-pseudofloat sub_pseudo(pseudofloat first, pseudofloat second);
+pseudofloat subFloat(pseudofloat first, pseudofloat second);
 
-void print_pseudo_representation(pseudofloat f);
+void printFloatRepresentation(pseudofloat f);
 
-void print_pseudo_as_float(const char *str, pseudofloat f);
+void printFloatAsFloat(const char *str, pseudofloat f);
 
-pseudofloat div_pseudo(pseudofloat first, pseudofloat second);
+pseudofloat divFloat(pseudofloat first, pseudofloat second);
 
-pseudofloat mul_pseudo(pseudofloat a, pseudofloat b);
+pseudofloat mulFloat(pseudofloat a, pseudofloat b);
 
-pseudofloat pseudo_from_int(int x, int rate_of_minus10);
+pseudofloat floatFromInt(int x, int rate_of_minus10);
 
-pseudofloat double2pseudo(double x);
+pseudofloat realDouble2Float(double x);
 
-double pseudo2double(pseudofloat f);
+double float2RealDouble(pseudofloat f);
 
 pseudofloat sinus(pseudofloat x);
 

@@ -19,31 +19,7 @@ processors
 #define MASK (MAX_NUMBER - 1)
 #define MAX_NUMBER_FIT (1073741824)  // 2^32 - sign
 
-void fixOverflow(pseudofloat *mantissa, int *exp) {
-  /* if (*exp > EXP_BIAS + MANTISSA_BITS - 1) {
-     // owerflow!
-     *exp = EXP_BIAS + MANTISSA_BITS - 1;
-     *mantissa = MAX_NUMBER / 2;
-   }
-   if (*exp < EXP_BIAS - (MANTISSA_BITS - 1)) {
-     // underflow!
-     *exp = EXP_BIAS - (MANTISSA_BITS - 1);
-     *mantissa = MAX_NUMBER / 2;
-   }*/
-
-  /*  if (*exp >= EXP_BIAS + 37) {
-      // owerflow!
-      *exp = EXP_BIAS + 37;
-      *mantissa = MAX_NUMBER / 2;
-    }
-    if (*exp <= EXP_BIAS - 37) {
-      // underflow!
-      *exp = EXP_BIAS - 37;
-      *mantissa = MAX_NUMBER / 2;
-    }*/
-}
-
-pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
+pseudofloat subTwoFloat(pseudofloat first, pseudofloat second, char sign) {
   int exp_first = first >> MANTISSA_BITS, exp_second = second >> MANTISSA_BITS;
 
   if (exp_first == 0) exp_first = EXP_BIAS;
@@ -57,7 +33,7 @@ pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
     return first | (sign >> (MANTISSA_BITS + EXP_SIZE));
   }
   if (exp_second - exp_first >= 32) {
-    // first number too mush bigger than next one
+    // second number too mush bigger than next one
     return second | (sign >> (MANTISSA_BITS + EXP_SIZE));
   }
 
@@ -90,14 +66,13 @@ pseudofloat sub_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
     exp--;
   }
   ret = res;
-  fixOverflow(&ret, &exp);
 
   exp = (sign << EXP_SIZE) + exp;
 
   return ret | ((pseudofloat)exp << MANTISSA_BITS);
 }
 
-pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
+pseudofloat addTwoFloat(pseudofloat first, pseudofloat second, char sign) {
   int exp_first = first >> MANTISSA_BITS, exp_second = second >> MANTISSA_BITS;
 
   exp_first &= EXP_MASK;
@@ -108,7 +83,7 @@ pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
     return first | (sign >> (MANTISSA_BITS + EXP_SIZE));
   }
   if (exp_second - exp_first >= 32) {
-    // first number too mush bigger than next one
+    // second number too mush bigger than next one
     return second | (sign >> (MANTISSA_BITS + EXP_SIZE));
   }
 
@@ -120,8 +95,6 @@ pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
       ++exp_first;
     }
 
-    fixOverflow(&first, &exp_first);
-
     exp_first = (sign << EXP_SIZE) + exp_first;
     return first | ((pseudofloat)exp_first << MANTISSA_BITS);
 
@@ -132,7 +105,6 @@ pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
       second >>= 1;
       ++exp_second;
     }
-    fixOverflow(&second, &exp_second);
 
     exp_second = (sign << EXP_SIZE) + exp_second;
     return second | ((pseudofloat)exp_second << MANTISSA_BITS);
@@ -141,57 +113,55 @@ pseudofloat add_two_pseudo(pseudofloat first, pseudofloat second, char sign) {
     exp_first++;
     pseudofloat res = (((first & MASK) + (second & MASK)) >> 1);
 
-    fixOverflow(&res, &exp_first);
-
     exp_first = (sign << EXP_SIZE) + exp_first;
     return res | (exp_first << MANTISSA_BITS);
   }
 }
 
-pseudofloat add_pseudo(pseudofloat first, pseudofloat second) {
+pseudofloat addFloat(pseudofloat first, pseudofloat second) {
   char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
   char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
 
   if (sign_first == 0 && sign_second == 0)  // A+B
-    return add_two_pseudo(first, second, 0);
+    return addTwoFloat(first, second, 0);
 
   if (sign_first == 1 && sign_second == 1) {  //-A-B=>-(A+B)
-    return add_two_pseudo(first, second, 1);
+    return addTwoFloat(first, second, 1);
   }
 
   if (sign_first == 0 && sign_second == 1) {  // A-B
-    return sub_two_pseudo(first, second, 0);
+    return subTwoFloat(first, second, 0);
   }
 
   if (sign_first == 1 && sign_second == 0) {  // -A+B
-    return sub_two_pseudo(second, first, 0);
+    return subTwoFloat(second, first, 0);
   }
 
   return 0;
 }
 
-pseudofloat sub_pseudo(pseudofloat first, pseudofloat second) {
+pseudofloat subFloat(pseudofloat first, pseudofloat second) {
   char sign_first = first >> (MANTISSA_BITS + EXP_SIZE);
   char sign_second = second >> (MANTISSA_BITS + EXP_SIZE);
 
   if (sign_first == 0 && sign_second == 0)  // A-B
-    return sub_two_pseudo(first, second, 0);
+    return subTwoFloat(first, second, 0);
 
   if (sign_first == 1 && sign_second == 1) {  //-A--B=>-A+B=>B-A
-    return sub_two_pseudo(second, first, 0);
+    return subTwoFloat(second, first, 0);
   }
 
   if (sign_first == 0 && sign_second == 1) {  // A--B=>A+B
-    return add_two_pseudo(first, second, 0);
+    return addTwoFloat(first, second, 0);
   }
 
   if (sign_first == 1 && sign_second == 0) {  // -A-B=> -(A+B)
-    return add_two_pseudo(first, second, 1);
+    return addTwoFloat(first, second, 1);
   }
   return 0;
 }
 
-void print_pseudo_representation(pseudofloat f) {
+void printFloatRepresentation(pseudofloat f) {
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
   e &= EXP_MASK;
@@ -206,7 +176,7 @@ void print_pseudo_representation(pseudofloat f) {
   printf("%d*2^%d\n", ff, e);
 }
 
-void print_pseudo_as_float(const char *str, pseudofloat f) {
+void printFloatAsFloat(const char *str, pseudofloat f) {
   printf("%s = ", str);
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> MANTISSA_BITS;
@@ -238,7 +208,7 @@ void print_pseudo_as_float(const char *str, pseudofloat f) {
 }
 
 // TODO: check the accuracy again
-pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
+pseudofloat divFloat(pseudofloat first, pseudofloat second) {
   pseudofloat we_return = 0;
   int reminder = 0;
   int new_exponent;
@@ -281,9 +251,7 @@ pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
       }  // hack: уменьшаем делимое
 
     unsigned div_result = first / second;
-
     printf("res=%d\n", div_result);
-
     reminder = first - second * div_result;
 
     while (div_result >= MAX_NUMBER) {
@@ -332,33 +300,23 @@ pseudofloat div_pseudo(pseudofloat first, pseudofloat second) {
     }
 
     char sign = (sign_first + sign_second) % 2;
-
-    fixOverflow(&first, &new_exponent);
-
     new_exponent = (sign << EXP_SIZE) + new_exponent;
-
     first = first | ((pseudofloat)(new_exponent) << MANTISSA_BITS);
-
-    print_pseudo_as_float("addind to div sum: ", first);
-
-    we_return = add_pseudo(we_return, first);
-
-    print_pseudo_as_float("got current div: ", we_return);
-
+    // print_pseudo_as_float("addind to div sum: ", first);
+    we_return = addFloat(we_return, first);
+    // print_pseudo_as_float("got current div: ", we_return);
     if ((new_exponent == EXP_BIAS + MANTISSA_BITS - 1) ||
         (new_exponent == EXP_BIAS - (MANTISSA_BITS - 1)))
       break;
-
     first = rem_div_number1;
     second = rem_div_number2;
-
     // continue to divide, get the reminder and add it to the result
   } while ((reminder > 0) && (exponent_reminder >= 142));
 
   return we_return;
 }
 
-pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
+pseudofloat mulFloat(pseudofloat a, pseudofloat b) {
   unsigned ea = a >> MANTISSA_BITS, eb = b >> MANTISSA_BITS;
   char signA = a >> (MANTISSA_BITS + EXP_SIZE);
   char signB = b >> (MANTISSA_BITS + EXP_SIZE);
@@ -368,11 +326,10 @@ pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
   a &= MASK;
   b &= MASK;
 
-  pseudofloat p = ((a >> 8) * (b >> 8)) >> 7;  // or we overflow it
+  pseudofloat p =
+      ((a >> 8) * (b >> 8)) >> (MANTISSA_BITS - 16);  // or we overflow it
 
   char sign = (signA + signB) % 2;
-
-  fixOverflow(&p, &e);
 
   e = (sign << EXP_SIZE) + e;
   return p | ((pseudofloat)e << MANTISSA_BITS);
@@ -382,7 +339,7 @@ pseudofloat mul_pseudo(pseudofloat a, pseudofloat b) {
  * @param rate_of_minus_10 - power of 10  to divide the number
  * @return x * pow(10, -rate_of_minus10)
  */
-pseudofloat pseudo_from_int(int x, int rate_of_minus10) {
+pseudofloat floatFromInt(int x, int rate_of_minus10) {
   int pow_of_10 = 1;
   for (int i = 0; i < rate_of_minus10; i++) pow_of_10 *= 10;
 
@@ -398,7 +355,6 @@ pseudofloat pseudo_from_int(int x, int rate_of_minus10) {
   while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
 
   first = x;
-  fixOverflow(&first, &e);
 
   e = (sign << EXP_SIZE) + e;
 
@@ -417,15 +373,14 @@ pseudofloat pseudo_from_int(int x, int rate_of_minus10) {
   }
 
   second = x;
-  fixOverflow(&second, &e);
 
   e = (sign << EXP_SIZE) + e;
   second = second | ((pseudofloat)e << (MANTISSA_BITS));
 
-  return div_pseudo(first, second);
+  return divFloat(first, second);
 }
 
-pseudofloat double2pseudo(double x) {
+pseudofloat realDouble2Float(double x) {
   pseudofloat f;
   int e = EXP_BIAS + MANTISSA_BITS;
   char sign = 0;
@@ -438,13 +393,11 @@ pseudofloat double2pseudo(double x) {
   while (x >= MAX_NUMBER && e <= 255) x /= 2, ++e;
   f = x;
 
-  fixOverflow(&f, &e);
-
   e = (sign << EXP_SIZE) + e;
   return f | ((pseudofloat)e << (MANTISSA_BITS));
 }
 
-double pseudo2double(pseudofloat f) {
+double float2RealDouble(pseudofloat f) {
   char sign = f >> (MANTISSA_BITS + EXP_SIZE);
   int e = f >> (MANTISSA_BITS);
   e &= EXP_MASK;
@@ -471,7 +424,7 @@ double pseudo2double(pseudofloat f) {
   return fl;
 }
 
-pseudofloat abs_pseudo(pseudofloat x) {
+pseudofloat absFloat(pseudofloat x) {
   char sign = x >> (MANTISSA_BITS + EXP_SIZE);
   int e = x >> (MANTISSA_BITS);
   e &= EXP_MASK;
@@ -483,49 +436,49 @@ pseudofloat abs_pseudo(pseudofloat x) {
 }
 
 pseudofloat sinus(pseudofloat x) {
-  print_pseudo_as_float("current x", x);
+  printFloatAsFloat("current x", x);
   int i = 1;
   pseudofloat current_sin = x;
-  pseudofloat seq_n = pseudo_from_int(1, 0);
+  pseudofloat seq_n = floatFromInt(1, 0);
 
   pseudofloat fact = seq_n;
   pseudofloat pow = x;
-  pseudofloat p00000001 = pseudo_from_int(1, 5);
-  pseudofloat xx = mul_pseudo(x, x);
-  print_pseudo_as_float("xx = ", xx);
+  pseudofloat p00000001 = floatFromInt(1, 5);
+  pseudofloat xx = mulFloat(x, x);
+  printFloatAsFloat("xx = ", xx);
 
-  xx = sub_pseudo(0, xx);
-  print_pseudo_as_float("1-xx = ", xx);
+  xx = subFloat(0, xx);
+  printFloatAsFloat("1-xx = ", xx);
 
   /// sinx = x - x^3/3! + x^5/5! ...
-  while ((abs_pseudo(seq_n) > p00000001) && i < 10) {
+  while ((absFloat(seq_n) > p00000001) && i < 10) {
     // while (i < 10) {
-    pseudofloat fac_part_new = pseudo_from_int(((2 * i) * (2 * i + 1)), 0);
-    fact = mul_pseudo(fact, fac_part_new);
-    print_pseudo_as_float("fact part = ", fact);
+    pseudofloat fac_part_new = floatFromInt(((2 * i) * (2 * i + 1)), 0);
+    fact = mulFloat(fact, fac_part_new);
+    printFloatAsFloat("fact part = ", fact);
 
-    pow = mul_pseudo(xx, pow);
-    print_pseudo_as_float("pow part = ", pow);
+    pow = mulFloat(xx, pow);
+    printFloatAsFloat("pow part = ", pow);
 
-    seq_n = div_pseudo(pow, fact);
+    seq_n = divFloat(pow, fact);
     printf("%d", i);
-    print_pseudo_as_float(" -> seq[i]  = ", seq_n);
+    printFloatAsFloat(" -> seq[i]  = ", seq_n);
 
-    print_pseudo_as_float("---- old sin = ", current_sin);
+    printFloatAsFloat("---- old sin = ", current_sin);
 
-    current_sin = add_pseudo(current_sin, seq_n);
+    current_sin = addFloat(current_sin, seq_n);
 
-    print_pseudo_as_float(" -> current sin = ", current_sin);
+    printFloatAsFloat(" -> current sin = ", current_sin);
     i++;
   }
 
-  print_pseudo_as_float(":: resturn sin = ", current_sin);
+  printFloatAsFloat(":: resturn sin = ", current_sin);
 
   return current_sin;
 }
 
 pseudofloat cosinus(pseudofloat x) {
-  pseudofloat demie_pi = pseudo_from_int(3141592 / 2, 6);
-  pseudofloat x1 = sub_pseudo(demie_pi, x);
+  pseudofloat demie_pi = floatFromInt(3141592 / 2, 6);
+  pseudofloat x1 = subFloat(demie_pi, x);
   return sinus(x1);
 }
