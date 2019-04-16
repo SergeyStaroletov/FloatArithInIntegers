@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QtTest/QtTest>
 
+// hi bi-51
 class TestFPU : public QObject {
   Q_OBJECT
  private slots:
